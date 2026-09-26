@@ -47,6 +47,19 @@ This document details the actual technology stack, libraries, server architectur
 ### 6. Background Jobs & Cron
 - Scheduled operations (72h stale issue reminders, 7-day auto-verification of resolved issues) are executed via `/api/cron` route handler secured by a bearer secret header.
 
+### 7. MCP Server Integration (`campusconnect-ops`)
+- **Purpose**: Exposes read-only operational diagnostics, issue metrics, stale issue tracking (>72h), staff workloads, audit log inspection, and claim verification metrics over stdio.
+- **Config Location**: [`.agents/mcp_config.json`](file:///.agents/mcp_config.json)
+- **Local Execution**: Launchable via `npx tsx scripts/mcp-server.ts`.
+- **Environment**: Reads `MONGODB_URI` from `.env.local` dynamically at runtime. Never hardcodes secrets or returns authentication credentials.
+- **Available Tools**:
+  1. `get_system_health`: Checks DB connectivity, uptime, environment, and MCP server status.
+  2. `get_issue_metrics`: Aggregates issue counts across the 6 canonical statuses (`Reported`, `Under_Review`, `Assigned`, `In_Progress`, `Resolved`, `Verified`), categories, and priorities.
+  3. `get_stale_issues`: Returns issues in `Reported` status older than 72 hours.
+  4. `get_staff_workload`: Returns staff assigned and in-progress issue counts (scrubbing sensitive user credentials).
+  5. `inspect_audit_logs`: Queries recent `AuditLog` entries with limit, action type, and entity type filters.
+  6. `get_pending_claims`: Lists Lost & Found claims in `Pending` status.
+
 ---
 
 ## References
