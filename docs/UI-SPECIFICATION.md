@@ -154,7 +154,7 @@ The application layout is divided into two distinct global container contexts:
 ### 5.5 My Issues Screen (`/issues`)
 - **Header**: `"My Issues"`, Subtitle: `"Track and monitor all your submitted campus issues."`. Right action button `"Report Issue"`.
 - **Main Card Container (`bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-6`)**:
-  - **Tabs Bar**: `All` (active with blue bottom border) | `Open` | `In Progress` | `Resolved` | `Closed`.
+  - **Tabs Bar**: `All` (active with blue bottom border) | `Open` | `In Progress` | `Resolved` | `Verified`.
   - **Search Bar**: Input with left search icon (`bg-slate-50 border border-slate-200 rounded-xl`).
   - **List Items**: Category icon, Title, Location, Status Badge, Date, Right Chevron `>`.
 
@@ -281,7 +281,7 @@ The application layout is divided into two distinct global container contexts:
 1. **Do NOT create dark purple, dark slate, or dark mode dashboards**. The background must remain crisp off-white (`#f8fafc`) and cards must remain pure white (`#ffffff`).
 2. **Do NOT use large purple hero banners**. Welcome sections must use text headings (`Good Morning, [Name]`) on white workspace backgrounds.
 3. **Do NOT use broken glyphs or `??` icon placeholders**. Use `lucide-react` vector components cleanly.
-4. **Do NOT use `Reported` as an issue status badge in the UI**. Display `Open` for reported issues in UI badges.
+4. **Do NOT use `Reported` as an issue status badge in the UI**. Display `Open` for reported issues in UI badges (Backend status = `Reported`, UI presentation label = `Open`).
 5. **Do NOT introduce Admin approval warning banners** on the login or registration pages.
 6. **Do NOT alter card proportions, rounded corner radiuses (`16px`), or blue primary accent colors (`#2563eb`)**.
 

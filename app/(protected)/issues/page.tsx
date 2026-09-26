@@ -17,13 +17,17 @@ export default function MyIssuesPage() {
   const tabs = [
     { id: 'All', label: 'All' },
     { id: 'Open', label: 'Open' },
-    { id: 'In Progress', label: 'In Progress' },
+    { id: 'In_Progress', label: 'In Progress' },
     { id: 'Resolved', label: 'Resolved' },
-    { id: 'Closed', label: 'Closed' },
+    { id: 'Verified', label: 'Verified' },
   ];
 
   const filteredIssues = DEMO_ISSUES.filter((issue) => {
-    const matchesTab = activeTab === 'All' || issue.status === activeTab;
+    const matchesTab =
+      activeTab === 'All' ||
+      (activeTab === 'Open' && (issue.status === 'Reported' || (issue.status as string) === 'Open')) ||
+      (activeTab === 'In_Progress' && (issue.status === 'In_Progress' || (issue.status as string) === 'In Progress')) ||
+      issue.status === activeTab;
     const matchesSearch =
       issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       issue.building.toLowerCase().includes(searchQuery.toLowerCase()) ||

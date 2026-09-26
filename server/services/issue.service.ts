@@ -100,14 +100,12 @@ export class IssueService {
 
     // Validate Status Transitions per Requirement 4.1
     const allowedTransitions: Record<string, string[]> = {
-      Reported: ['Under_Review', 'Assigned', 'In_Progress', 'Closed'],
-      Under_Review: ['Assigned', 'In_Progress', 'Closed'],
-      Assigned: ['In_Progress', 'Closed'],
-      In_Progress: ['Resolved', 'Closed'],
-      Resolved: ['Verified', 'Reported', 'Closed'],
+      Reported: ['Under_Review'],
+      Under_Review: ['Assigned', 'In_Progress'],
+      Assigned: ['In_Progress'],
+      In_Progress: ['Resolved'],
+      Resolved: ['Verified', 'Reported'],
       Verified: [],
-      Closed: ['Reported'],
-      Closed_Duplicate: [],
     };
 
     const validNextStatuses = allowedTransitions[currentStatus] || [];
@@ -314,9 +312,9 @@ export class IssueService {
     const { Comment } = await import('../models/Comment');
     await Comment.updateMany({ parentId: secondary._id }, { parentId: primary._id });
 
-    // Mark secondary issue as Closed_Duplicate
+    // Mark secondary issue as Verified per Requirement 13.5
     const oldStatus = secondary.status;
-    secondary.status = 'Closed_Duplicate';
+    secondary.status = 'Verified';
     secondary.resolutionNote = `Merged into primary issue #${primary._id}`;
     await secondary.save();
 

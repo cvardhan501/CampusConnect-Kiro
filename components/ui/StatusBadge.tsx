@@ -29,6 +29,10 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' })
       label = 'Resolved';
       styleClass = 'bg-emerald-50 text-emerald-600 border-emerald-200';
       break;
+    case 'verified':
+      label = 'Verified';
+      styleClass = 'bg-teal-50 text-teal-700 border-teal-200';
+      break;
     case 'searching':
       label = 'Searching';
       styleClass = 'bg-purple-50 text-purple-600 border-purple-200';
@@ -53,11 +57,6 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' })
     case 'rejected':
       label = 'Rejected';
       styleClass = 'bg-red-50 text-red-600 border-red-200';
-      break;
-    case 'closed':
-    case 'closedduplicate':
-      label = normalized === 'closedduplicate' ? 'Closed (Duplicate)' : 'Closed';
-      styleClass = 'bg-slate-100 text-slate-600 border-slate-200';
       break;
     default:
       label = status;

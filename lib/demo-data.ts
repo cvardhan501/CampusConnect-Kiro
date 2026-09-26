@@ -17,7 +17,7 @@ export interface DemoIssue {
   category: string;
   building: string;
   room: string;
-  status: 'Open' | 'In Progress' | 'Assigned' | 'Resolved' | 'Closed';
+  status: 'Reported' | 'Under_Review' | 'Assigned' | 'In_Progress' | 'Resolved' | 'Verified';
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
   reportedBy: string;
   assignedTo?: string;
@@ -109,7 +109,7 @@ export const DEMO_ISSUES: DemoIssue[] = [
     category: 'AC / Ventilation',
     building: 'Block C',
     room: 'Room 204',
-    status: 'In Progress',
+    status: 'In_Progress',
     priority: 'High',
     reportedBy: 'Vishnu',
     assignedTo: 'Robert Taylor',
@@ -141,7 +141,7 @@ export const DEMO_ISSUES: DemoIssue[] = [
     category: 'Wi-Fi / Network',
     building: 'Block A',
     room: 'Floor 2',
-    status: 'Open',
+    status: 'Reported',
     priority: 'Low',
     reportedBy: 'Vishnu',
     createdAt: 'Apr 18, 2025',
@@ -173,7 +173,7 @@ export const DEMO_ISSUES: DemoIssue[] = [
     category: 'Electrical',
     building: 'Science Building',
     room: 'East Corridor',
-    status: 'Closed',
+    status: 'Verified',
     priority: 'Low',
     reportedBy: 'Anita Roy',
     createdAt: 'Apr 10, 2025',

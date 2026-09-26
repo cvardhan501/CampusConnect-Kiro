@@ -33,8 +33,8 @@ export class CommentService {
     if (parentType === 'Issue') {
       const issue = await Issue.findById(parentId);
       if (!issue) throw new Error('Parent issue not found');
-      if (issue.status === 'Verified' || issue.status === 'Closed' || issue.status === 'Closed_Duplicate') {
-        throw new Error('Comments cannot be added to closed or verified issues');
+      if (issue.status === 'Verified') {
+        throw new Error('Comments cannot be added to verified issues');
       }
     } else {
       const item = await LostFoundItem.findById(parentId);

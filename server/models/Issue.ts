@@ -7,9 +7,7 @@ export type IssueStatus =
   | 'Assigned'
   | 'In_Progress'
   | 'Resolved'
-  | 'Verified'
-  | 'Closed'
-  | 'Closed_Duplicate';
+  | 'Verified';
 
 export interface IAttachment {
   url: string;
@@ -89,8 +87,6 @@ const IssueSchema = new Schema<IIssue>(
         'In_Progress',
         'Resolved',
         'Verified',
-        'Closed',
-        'Closed_Duplicate',
       ],
       default: 'Reported',
       required: true,
