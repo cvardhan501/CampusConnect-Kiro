@@ -5,6 +5,18 @@ import { AuditLog } from '../models/AuditLog';
 import { User } from '../models/User';
 import { AIService } from './ai.service';
 
+// ---------------------------------------------------------------------------
+// XSS sanitization (reused from comment.service pattern)
+// ---------------------------------------------------------------------------
+function sanitizeText(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 export interface CreateIssueInput {
   title: string;
   description: string;
@@ -52,27 +64,80 @@ export class IssueService {
         );
         issue.aiSuggestedCategory = triage.suggestedCategory;
         issue.aiSuggestedPriority = triage.suggestedPriority;
+        issue.aiTriageStatus = 'Completed';
         await issue.save();
+
+        await AuditLog.create({
+          actingUserId: null,
+          actionType: 'AI_TRIAGE_COMPLETED',
+          entityType: 'Issue',
+          entityId: issue._id,
+          details: {
+            suggestedCategory: triage.suggestedCategory,
+            suggestedPriority: triage.suggestedPriority,
+          },
+          timestamp: new Date(),
+        });
+
         await AIService.findPotentialDuplicateIssues(issue._id.toString());
       } catch (err) {
         console.error('Async AI triage failed:', err);
+        // Mark triage as failed — required by Req 14.2
+        try {
+          await Issue.findByIdAndUpdate(issue._id, { aiTriageStatus: 'Failed' });
+          await AuditLog.create({
+            actingUserId: null,
+            actionType: 'AI_TRIAGE_FAILED',
+            entityType: 'Issue',
+            entityId: issue._id,
+            details: { error: (err as Error).message },
+            timestamp: new Date(),
+          });
+        } catch {
+          /* silent — triage status update is best-effort */
+        }
       }
     })();
 
-    // Critical Priority Notification
+    // Critical Priority Notification — notify Admins + department Staff (Req 3.7/3.8)
     if (input.priority === 'Critical') {
       void (async () => {
         try {
+          // Find Staff assigned to the same department first
+          const deptStaff = input.category
+            ? await User.find({ role: 'Staff', status: 'Active', department: input.category })
+            : [];
+
+          const recipientIds: string[] = [];
+
+          if (deptStaff.length > 0) {
+            for (const staff of deptStaff) {
+              recipientIds.push(staff._id.toString());
+              await NotificationService.create({
+                userId: staff._id.toString(),
+                type: 'CriticalIssueCreated',
+                title: 'Critical Safety Issue Reported!',
+                message: `CRITICAL: "${issue.title}" at ${issue.location}`,
+                link: `/issues/${issue._id}`,
+                sendEmail: true,
+              });
+            }
+          }
+
+          // Always notify all Admins too (Req 3.8 says notify admins if no staff;
+          // practical choice: always notify admins for Critical regardless)
           const admins = await User.find({ role: 'Administrator', status: 'Active' });
           for (const admin of admins) {
-            await NotificationService.create({
-              userId: admin._id.toString(),
-              type: 'CriticalIssueCreated',
-              title: 'Critical Safety Issue Reported!',
-              message: `CRITICAL: "${issue.title}" at ${issue.location}`,
-              link: `/issues/${issue._id}`,
-              sendEmail: true,
-            });
+            if (!recipientIds.includes(admin._id.toString())) {
+              await NotificationService.create({
+                userId: admin._id.toString(),
+                type: 'CriticalIssueCreated',
+                title: 'Critical Safety Issue Reported!',
+                message: `CRITICAL: "${issue.title}" at ${issue.location}`,
+                link: `/issues/${issue._id}`,
+                sendEmail: true,
+              });
+            }
           }
         } catch (err) {
           console.error('Critical notification error:', err);
@@ -82,6 +147,31 @@ export class IssueService {
 
     return issue;
   }
+
+  // ---------------------------------------------------------------------------
+  // Role-aware transition permission map (Req 4.1 + Security steering)
+  // ---------------------------------------------------------------------------
+  private static readonly ROLE_ALLOWED_TRANSITIONS: Record<string, Record<string, string[]>> = {
+    // Students may only confirm/reopen their own resolved issues
+    Student: {
+      Resolved: ['Verified', 'Reported'],
+    },
+    // Staff can drive operational transitions
+    Staff: {
+      Reported: ['Under_Review'],
+      Under_Review: ['Assigned', 'In_Progress'],
+      Assigned: ['In_Progress'],
+      In_Progress: ['Resolved'],
+    },
+    // Admins can do everything
+    Administrator: {
+      Reported: ['Under_Review'],
+      Under_Review: ['Assigned', 'In_Progress'],
+      Assigned: ['In_Progress'],
+      In_Progress: ['Resolved'],
+      Resolved: ['Verified', 'Reported'],
+    },
+  };
 
   static async updateStatus(
     issueId: string,
@@ -98,8 +188,8 @@ export class IssueService {
 
     const currentStatus = issue.status;
 
-    // Validate Status Transitions per Requirement 4.1
-    const allowedTransitions: Record<string, string[]> = {
+    // Full allowed-transitions map (used for basic validity check regardless of role)
+    const allAllowedTransitions: Record<string, string[]> = {
       Reported: ['Under_Review'],
       Under_Review: ['Assigned', 'In_Progress'],
       Assigned: ['In_Progress'],
@@ -108,30 +198,65 @@ export class IssueService {
       Verified: [],
     };
 
-    const validNextStatuses = allowedTransitions[currentStatus] || [];
+    const validNextStatuses = allAllowedTransitions[currentStatus] || [];
     if (!validNextStatuses.includes(newStatus)) {
-      throw new Error(`Invalid status transition from ${currentStatus} to ${newStatus}`);
+      // 422 for invalid lifecycle transition (per conventions steering)
+      const err = new Error(`Invalid status transition from ${currentStatus} to ${newStatus}`);
+      (err as any).statusCode = 422;
+      throw err;
     }
 
-    // Submitter verification rule: Only submitting student can reopen or verify Resolved issue
-    if (currentStatus === 'Resolved') {
-      if (issue.reporter.toString() !== actingUserId && actingUserRole !== 'Administrator') {
-        throw new Error('Only the submitting student or an Administrator can verify or reopen a resolved issue');
+    // Role-level permission check
+    const roleTransitions = IssueService.ROLE_ALLOWED_TRANSITIONS[actingUserRole] || {};
+    const roleAllowed = roleTransitions[currentStatus] || [];
+
+    if (!roleAllowed.includes(newStatus)) {
+      const err = new Error(
+        `Role '${actingUserRole}' is not permitted to transition issues from ${currentStatus} to ${newStatus}`
+      );
+      (err as any).statusCode = 403;
+      throw err;
+    }
+
+    // Submitter-only restriction for Resolved → * transitions
+    if (currentStatus === 'Resolved' && actingUserRole === 'Student') {
+      if (issue.reporter.toString() !== actingUserId) {
+        const err = new Error('Only the original submitter can verify or reopen their resolved issue');
+        (err as any).statusCode = 403;
+        throw err;
+      }
+
+      // Enforce 7-day verification window for Student reopen (Req 4.6)
+      if (newStatus === 'Reported') {
+        if (issue.verificationWindowExpiresAt && issue.verificationWindowExpiresAt <= new Date()) {
+          const err = new Error(
+            'The 7-day verification window has expired. The issue will be auto-verified.'
+          );
+          (err as any).statusCode = 422;
+          throw err;
+        }
       }
     }
 
-    // Require Resolution Note for Resolved status
+    // Resolution Note required + XSS-sanitized (Req 4.2, 4.3)
     if (newStatus === 'Resolved') {
       if (!resolutionNote || resolutionNote.trim().length < 20 || resolutionNote.trim().length > 1000) {
-        throw new Error('Transitioning to Resolved requires a resolution note of 20-1000 characters');
+        const err = new Error('Transitioning to Resolved requires a resolution note of 20–1000 characters');
+        (err as any).statusCode = 400;
+        throw err;
       }
-      issue.resolutionNote = resolutionNote.trim();
+      issue.resolutionNote = sanitizeText(resolutionNote.trim());
+
       if (resolutionPhotos && resolutionPhotos.length > 0) {
-        if (resolutionPhotos.length > 3) throw new Error('Maximum 3 resolution photos permitted');
+        if (resolutionPhotos.length > 3) {
+          const err = new Error('Maximum 3 resolution photos permitted');
+          (err as any).statusCode = 400;
+          throw err;
+        }
         issue.resolutionPhotos = resolutionPhotos;
       }
 
-      // Set 7-day Verification Window
+      // Set 7-day Verification Window (Req 4.4)
       issue.verificationWindowExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     }
 
@@ -148,7 +273,7 @@ export class IssueService {
       timestamp: new Date(),
     });
 
-    // Notify Submitter
+    // Notify Submitter (email for Resolved + Verified)
     void NotificationService.create({
       userId: issue.reporter.toString(),
       type: 'IssueStatusChange',
@@ -161,8 +286,22 @@ export class IssueService {
     return issue;
   }
 
-  static async assignIssue(issueId: string, staffUserId: string, actingUserId: string): Promise<IIssue> {
+  // ---------------------------------------------------------------------------
+  // Assign issue — Administrator-only (Req design spec + security steering)
+  // ---------------------------------------------------------------------------
+  static async assignIssue(
+    issueId: string,
+    staffUserId: string,
+    actingUserId: string,
+    actingUserRole: string
+  ): Promise<IIssue> {
     await connectToDatabase();
+
+    if (actingUserRole !== 'Administrator') {
+      const err = new Error('Only Administrators can assign issues');
+      (err as any).statusCode = 403;
+      throw err;
+    }
 
     const issue = await Issue.findById(issueId);
     if (!issue) throw new Error('Issue not found');
@@ -172,11 +311,27 @@ export class IssueService {
       throw new Error('Assigned user must be a Staff member or Administrator');
     }
 
+    const previousAssignee = issue.assignedTo?.toString();
     issue.assignedTo = staffUser._id;
     if (issue.status === 'Reported' || issue.status === 'Under_Review') {
       issue.status = 'Assigned';
     }
     await issue.save();
+
+    // Audit Log (previously missing — Req 15.1)
+    await AuditLog.create({
+      actingUserId,
+      actionType: 'ISSUE_ASSIGNED',
+      entityType: 'Issue',
+      entityId: issue._id,
+      details: {
+        assignedTo: staffUser._id,
+        assignedToName: staffUser.displayName,
+        previousAssignee: previousAssignee || null,
+        newStatus: issue.status,
+      },
+      timestamp: new Date(),
+    });
 
     // Notify Staff Member
     void NotificationService.create({
@@ -267,7 +422,7 @@ export class IssueService {
 
     if (newCategory) issue.category = newCategory;
     if (newPriority) issue.priority = newPriority;
-    issue.aiTriageStatus = 'Completed';
+    issue.aiTriageStatus = 'Overridden';
     await issue.save();
 
     await AuditLog.create({
@@ -315,7 +470,7 @@ export class IssueService {
     // Mark secondary issue as Verified per Requirement 13.5
     const oldStatus = secondary.status;
     secondary.status = 'Verified';
-    secondary.resolutionNote = `Merged into primary issue #${primary._id}`;
+    secondary.resolutionNote = sanitizeText(`Merged into primary issue #${primary._id}`);
     await secondary.save();
 
     // Audit Log
@@ -332,6 +487,45 @@ export class IssueService {
       timestamp: new Date(),
     });
 
+    // Notify reporter of secondary issue
+    void NotificationService.create({
+      userId: secondary.reporter.toString(),
+      type: 'IssueStatusChange',
+      title: 'Your Issue Was Merged',
+      message: `Your issue "${secondary.title}" was identified as a duplicate and merged into issue #${primary._id}.`,
+      link: `/issues/${primary._id}`,
+    });
+
     return { primaryIssue: primary, secondaryIssue: secondary };
+  }
+
+  static async dismissDuplicate(
+    issueId: string,
+    duplicateIssueId: string,
+    adminUserId: string
+  ): Promise<IIssue> {
+    await connectToDatabase();
+
+    const issue = await Issue.findById(issueId);
+    if (!issue) throw new Error('Issue not found');
+
+    const match = issue.potentialDuplicates.find(
+      (d) => d.issueId.toString() === duplicateIssueId
+    );
+    if (!match) throw new Error('Potential duplicate link not found');
+
+    match.dismissed = true;
+    await issue.save();
+
+    await AuditLog.create({
+      actingUserId: adminUserId,
+      actionType: 'DUPLICATE_DISMISSED',
+      entityType: 'Issue',
+      entityId: issue._id,
+      details: { dismissedDuplicateId: duplicateIssueId },
+      timestamp: new Date(),
+    });
+
+    return issue;
   }
 }

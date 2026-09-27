@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateRequest } from '@/server/utils/rbac';
+import { authenticateRequest, logRBACViolation } from '@/server/utils/rbac';
 import { IssueService } from '@/server/services/issue.service';
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -27,6 +27,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     return NextResponse.json({ message: 'Issue status updated successfully', issue });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Status transition failed' }, { status: 400 });
+    const code: number = err.statusCode ?? 400;
+
+    // Log RBAC violations
+    if (code === 403) {
+      await logRBACViolation(payload.sub, `PATCH status → ${req.url}`, 'Issue status transition');
+    }
+
+    return NextResponse.json(
+      { error: err.message || 'Status transition failed' },
+      { status: code }
+    );
   }
 }

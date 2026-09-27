@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
 import { Wrench, Search, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { IssueCard } from '@/components/ui/IssueCard';
+import { LastUpdatedIndicator } from '@/components/ui/LastUpdatedIndicator';
 import { DEMO_ISSUES } from '@/lib/demo-data';
 
 export default function StudentDashboardPage() {
@@ -14,11 +15,14 @@ export default function StudentDashboardPage() {
     <AppShell initialRole="student">
       <div className="space-y-8">
         {/* Top Welcome Header */}
-        <div className="space-y-1">
-          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Good Morning, Vishnu
-          </h1>
-          <p className="text-sm text-slate-500 font-medium">Welcome back to CampusConnect</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-1">
+            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Good Morning, Vishnu
+            </h1>
+            <p className="text-sm text-slate-500 font-medium">Welcome back to CampusConnect</p>
+          </div>
+          <LastUpdatedIndicator />
         </div>
 
         {/* 2-Column Quick Action Cards Grid */}

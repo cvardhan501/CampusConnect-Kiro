@@ -6,6 +6,9 @@ import { LostFoundItem, ILostFoundItem } from '../models/LostFound';
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
+// Primary model — gemini-1.5-flash is the correct GA name for the fast Gemini 1.5 model
+const GEMINI_MODEL = 'gemini-1.5-flash';
+
 export interface AITriageResult {
   suggestedCategory: string;
   suggestedPriority: IssuePriority;
@@ -31,20 +34,14 @@ export class AIService {
       return defaultResult;
     }
 
-    try {
-      const timeoutPromise = new Promise<AITriageResult>((_, reject) =>
-        setTimeout(() => reject(new Error('AI Triage timeout (15s exceeded)')), 15000)
-      );
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('AI Triage timeout (15s exceeded)')), 15000)
+    );
 
-      const aiPromise = (async (): Promise<AITriageResult> => {
-        let model;
-        try {
-          model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash' });
-        } catch {
-          model = genAI.getGenerativeModel({ model: 'gemini-3.7-flash' });
-        }
+    const aiPromise = (async (): Promise<AITriageResult> => {
+      const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
 
-        const prompt = `Analyze this campus issue report and return JSON with keys:
+      const prompt = `Analyze this campus issue report and return JSON with keys:
 "suggestedCategory" (one of: Facilities, Electrical, Plumbing, IT_Network, Safety, HVAC, Other),
 "severity" (number 1 to 5, where 1-2=Low, 3=Medium, 4=High, 5=Critical),
 "suggestedPriority" (one of: Low, Medium, High, Critical).
@@ -53,38 +50,42 @@ Title: "${title}"
 Description: "${description}"
 Location: "${location}"`;
 
-        const response = await model.generateContent(prompt);
-        const text = response.response.text();
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const response = await model.generateContent(prompt);
+      const text = response.response.text();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
 
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          const severityNum = typeof parsed.severity === 'number' && parsed.severity >= 1 && parsed.severity <= 5 ? parsed.severity : 3;
-          
-          let priority: IssuePriority = 'Medium';
-          if (severityNum === 1 || severityNum === 2) priority = 'Low';
-          else if (severityNum === 3) priority = 'Medium';
-          else if (severityNum === 4) priority = 'High';
-          else if (severityNum === 5) priority = 'Critical';
-          if (parsed.suggestedPriority && ['Low', 'Medium', 'High', 'Critical'].includes(parsed.suggestedPriority)) {
-            priority = parsed.suggestedPriority;
-          }
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        const severityNum =
+          typeof parsed.severity === 'number' && parsed.severity >= 1 && parsed.severity <= 5
+            ? parsed.severity
+            : 3;
 
-          return {
-            suggestedCategory: parsed.suggestedCategory || category,
-            suggestedPriority: priority,
-            severity: severityNum,
-            potentialDuplicates: [],
-          };
+        let priority: IssuePriority = 'Medium';
+        if (severityNum <= 2) priority = 'Low';
+        else if (severityNum === 3) priority = 'Medium';
+        else if (severityNum === 4) priority = 'High';
+        else if (severityNum === 5) priority = 'Critical';
+
+        if (
+          parsed.suggestedPriority &&
+          ['Low', 'Medium', 'High', 'Critical'].includes(parsed.suggestedPriority)
+        ) {
+          priority = parsed.suggestedPriority;
         }
-        return defaultResult;
-      })();
 
-      return await Promise.race([aiPromise, timeoutPromise]);
-    } catch (err) {
-      console.warn('AI Triage fallback due to error or timeout:', err);
+        return {
+          suggestedCategory: parsed.suggestedCategory || category,
+          suggestedPriority: priority,
+          severity: severityNum,
+          potentialDuplicates: [],
+        };
+      }
       return defaultResult;
-    }
+    })();
+
+    // Let the caller (issue.service.ts) handle the thrown error and set aiTriageStatus='Failed'
+    return await Promise.race([aiPromise, timeoutPromise]);
   }
 
   static async findPotentialDuplicateIssues(issueId: string): Promise<void> {
@@ -104,7 +105,6 @@ Location: "${location}"`;
       const duplicates: Array<{ issueId: any; similarityScore: number; reason: string }> = [];
 
       for (const item of recentIssues) {
-        // Keyword similarity check
         const t1 = targetIssue.title.toLowerCase();
         const t2 = item.title.toLowerCase();
         const words1 = t1.split(/\s+/);
@@ -120,14 +120,15 @@ Location: "${location}"`;
       }
 
       targetIssue.potentialDuplicates = duplicates.slice(0, 3) as any;
-      targetIssue.aiTriageStatus = 'Completed';
       await targetIssue.save();
     } catch (err) {
       console.error('Failed to run duplicate issue check:', err);
     }
   }
 
-  static async findLostFoundMatches(itemId: string): Promise<Array<{ itemId: string; confidenceScore: number; reason: string }>> {
+  static async findLostFoundMatches(
+    itemId: string
+  ): Promise<Array<{ itemId: string; confidenceScore: number; reason: string }>> {
     try {
       await connectToDatabase();
       const targetItem = await LostFoundItem.findById(itemId);

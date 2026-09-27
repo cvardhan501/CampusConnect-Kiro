@@ -75,20 +75,47 @@ export class ClaimService {
     item.status = 'Claimed';
     await item.save();
 
-    // Auto-archive all other pending claims for this item
+    // Audit Log (previously missing — Req 15.1)
+    await AuditLog.create({
+      actingUserId,
+      actionType: 'CLAIM_APPROVED',
+      entityType: 'Claim',
+      entityId: claim._id,
+      details: { foundItemId: item._id, claimantId: claim.claimantId },
+      timestamp: new Date(),
+    });
+
+    // Find and archive other pending claims — notify each one (Req 6.8)
+    const otherPendingClaims = await Claim.find({
+      foundItemId: item._id,
+      _id: { $ne: claim._id },
+      status: 'Pending',
+    });
+
     await Claim.updateMany(
       { foundItemId: item._id, _id: { $ne: claim._id }, status: 'Pending' },
       { status: 'Archived' }
     );
 
+    for (const other of otherPendingClaims) {
+      void NotificationService.create({
+        userId: other.claimantId.toString(),
+        type: 'ClaimDecision',
+        title: 'Item Claimed by Another',
+        message: `The item "${item.title}" has been claimed by another person. Your claim has been closed.`,
+        link: `/lost-found/${item._id}`,
+        sendEmail: true,
+      });
+    }
+
     const poster = await User.findById(actingUserId);
 
-    // Notify Claimant with contact details
+    // Notify winning claimant with contact details
     void NotificationService.create({
       userId: claim.claimantId.toString(),
       type: 'ClaimDecision',
       title: 'Claim Approved! Contact Item Poster',
-      message: `Your claim for "${item.title}" was approved! Contact ${poster?.displayName || 'Poster'} at ${poster?.email} / ${poster?.phoneNumber || 'Campus Center'} to coordinate pickup.`,
+      message: `Your claim for "${item.title}" was approved! Contact ${poster?.displayName || 'the poster'} at ${poster?.email || ''} to coordinate pickup.`,
       link: `/lost-found/${item._id}`,
       sendEmail: true,
     });
@@ -110,6 +137,20 @@ export class ClaimService {
     claim.status = 'Rejected';
     claim.rejectionReason = rejectionReason.slice(0, 500);
     await claim.save();
+
+    // Audit Log (previously missing — Req 15.1)
+    await AuditLog.create({
+      actingUserId,
+      actionType: 'CLAIM_REJECTED',
+      entityType: 'Claim',
+      entityId: claim._id,
+      details: {
+        foundItemId: item._id,
+        claimantId: claim.claimantId,
+        rejectionReason: claim.rejectionReason,
+      },
+      timestamp: new Date(),
+    });
 
     // Notify Claimant
     void NotificationService.create({

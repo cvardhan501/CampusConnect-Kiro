@@ -52,12 +52,19 @@ export class CommentService {
       isTombstone: false,
     });
 
-    // Notify Submitter / Item Poster
+    // Notify submitter + all prior commenters (Req 7.3)
     void (async () => {
       try {
+        const notified = new Set<string>();
+        notified.add(authorId); // never notify the author of their own comment
+
         if (parentType === 'Issue') {
           const issue = await Issue.findById(parentId);
-          if (issue && issue.reporter.toString() !== authorId) {
+          if (!issue) return;
+
+          // 1. Notify issue reporter
+          if (!notified.has(issue.reporter.toString())) {
+            notified.add(issue.reporter.toString());
             await NotificationService.create({
               userId: issue.reporter.toString(),
               type: 'CommentAdded',
@@ -66,9 +73,33 @@ export class CommentService {
               link: `/issues/${issue._id}`,
             });
           }
+
+          // 2. Notify all prior non-tombstone commenters
+          const priorComments = await Comment.find({
+            parentId: issue._id,
+            isTombstone: false,
+            _id: { $ne: comment._id },
+          }).distinct('authorId');
+
+          for (const prior of priorComments) {
+            const uid = prior.toString();
+            if (!notified.has(uid)) {
+              notified.add(uid);
+              await NotificationService.create({
+                userId: uid,
+                type: 'CommentAdded',
+                title: 'New Comment on an Issue You Commented On',
+                message: `A new comment was posted on "${issue.title}".`,
+                link: `/issues/${issue._id}`,
+              });
+            }
+          }
         } else {
           const item = await LostFoundItem.findById(parentId);
-          if (item && item.reportedBy.toString() !== authorId) {
+          if (!item) return;
+
+          if (!notified.has(item.reportedBy.toString())) {
+            notified.add(item.reportedBy.toString());
             await NotificationService.create({
               userId: item.reportedBy.toString(),
               type: 'CommentAdded',
@@ -114,7 +145,11 @@ export class CommentService {
     return comment;
   }
 
-  static async deleteComment(commentId: string, actingUserId: string, actingUserRole: string): Promise<IComment> {
+  static async deleteComment(
+    commentId: string,
+    actingUserId: string,
+    actingUserRole: string
+  ): Promise<IComment> {
     await connectToDatabase();
 
     const comment = await Comment.findById(commentId);
@@ -124,7 +159,7 @@ export class CommentService {
       throw new Error('Only the author or an Administrator can delete this comment');
     }
 
-    // Tombstone replacement
+    // Tombstone replacement (Req 7.7)
     comment.body = '[This comment has been deleted.]';
     comment.isTombstone = true;
     await comment.save();
@@ -140,8 +175,12 @@ export class CommentService {
     return comment;
   }
 
-  static async getCommentsForParent(parentId: string) {
+  static async getCommentsForParent(parentId: string, parentType?: CommentParentType) {
     await connectToDatabase();
-    return Comment.find({ parentId }).populate('authorId', 'displayName role').sort({ createdAt: 1 });
+    const filter: Record<string, any> = { parentId };
+    if (parentType) filter.parentType = parentType;
+    return Comment.find(filter)
+      .populate('authorId', 'displayName role')
+      .sort({ createdAt: 1 });
   }
 }

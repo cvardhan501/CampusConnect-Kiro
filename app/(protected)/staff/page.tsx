@@ -7,6 +7,7 @@ import { StatCard } from '@/components/ui/StatCard';
 import { IssueCard } from '@/components/ui/IssueCard';
 import { ClipboardCheck, CheckCircle2, PackageCheck } from 'lucide-react';
 import { DEMO_ISSUES } from '@/lib/demo-data';
+import { LastUpdatedIndicator } from '@/components/ui/LastUpdatedIndicator';
 
 export default function StaffDashboardPage() {
   const assignedIssues = DEMO_ISSUES.slice(0, 3);
@@ -15,9 +16,12 @@ export default function StaffDashboardPage() {
     <AppShell initialRole="staff">
       <div className="space-y-8">
         {/* Header */}
-        <div className="space-y-1">
-          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Staff Dashboard</h1>
-          <p className="text-sm text-slate-500 font-medium">Manage your assigned tasks and campus claims.</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-1">
+            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Staff Dashboard</h1>
+            <p className="text-sm text-slate-500 font-medium">Manage your assigned tasks and campus claims.</p>
+          </div>
+          <LastUpdatedIndicator />
         </div>
 
         {/* 3 Stat Cards Row */}

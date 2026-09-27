@@ -5,6 +5,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { StatCard } from '@/components/ui/StatCard';
 import { Users, CheckCircle2, Package, RotateCcw, Wrench, ShieldCheck } from 'lucide-react';
 import { DEMO_ADMIN_STATS } from '@/lib/demo-data';
+import { LastUpdatedIndicator } from '@/components/ui/LastUpdatedIndicator';
 
 export default function AdminDashboardPage() {
   const stats = DEMO_ADMIN_STATS;
@@ -13,9 +14,12 @@ export default function AdminDashboardPage() {
     <AppShell initialRole="admin">
       <div className="space-y-8">
         {/* Header */}
-        <div className="space-y-1">
-          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Admin Dashboard</h1>
-          <p className="text-sm text-slate-500 font-medium">Campus overview and key statistics</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-1">
+            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Admin Dashboard</h1>
+            <p className="text-sm text-slate-500 font-medium">Campus overview and key statistics</p>
+          </div>
+          <LastUpdatedIndicator />
         </div>
 
         {/* 4 Stat Cards Row */}
