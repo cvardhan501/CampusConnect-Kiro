@@ -156,14 +156,14 @@ export class IssueService {
     Student: {
       Resolved: ['Verified', 'Reported'],
     },
-    // Staff can drive operational transitions
+    // Staff can drive operational transitions (assignment is Admin-only)
     Staff: {
       Reported: ['Under_Review'],
-      Under_Review: ['Assigned', 'In_Progress'],
+      Under_Review: ['In_Progress'],
       Assigned: ['In_Progress'],
       In_Progress: ['Resolved'],
     },
-    // Admins can do everything
+    // Admins can perform all workflow transitions, including assignment (Under_Review -> Assigned)
     Administrator: {
       Reported: ['Under_Review'],
       Under_Review: ['Assigned', 'In_Progress'],
@@ -216,6 +216,20 @@ export class IssueService {
       );
       (err as any).statusCode = 403;
       throw err;
+    }
+
+    // Staff department boundary enforcement (Req 2.3)
+    if (actingUserRole === 'Staff') {
+      const staffUser = await User.findById(actingUserId);
+      if (staffUser && staffUser.department) {
+        const issueDept = issue.department || issue.category;
+        const isAssignedToStaff = issue.assignedTo && issue.assignedTo.toString() === actingUserId;
+        if (issueDept && issueDept !== staffUser.department && !isAssignedToStaff) {
+          const err = new Error('Staff can only update issues within their assigned department or assigned to them');
+          (err as any).statusCode = 403;
+          throw err;
+        }
+      }
     }
 
     // Submitter-only restriction for Resolved → * transitions
