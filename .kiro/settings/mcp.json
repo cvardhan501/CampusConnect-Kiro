@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "campusconnect-ops": {
+      "command": "npx",
+      "args": [
+        "tsx",
+        "scripts/mcp-server.ts"
+      ],
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
+  }
+}

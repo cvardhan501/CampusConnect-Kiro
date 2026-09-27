@@ -1,0 +1,25 @@
+{
+  "name": "campusconnect-qa",
+  "displayName": "CampusConnect QA Agent",
+  "description": "Read-only quality assurance agent that audits CampusConnect implementations against canonical specifications, state machine lifecycles, RBAC enforcement, and security policies.",
+  "instructions": ".kiro/agents/campusconnect-qa.md",
+  "mode": "read-only",
+  "version": "1.0.0",
+  "tools": [
+    "read_file",
+    "grep_search",
+    "list_dir",
+    "get_system_health",
+    "get_issue_metrics",
+    "get_stale_issues",
+    "inspect_audit_logs",
+    "get_pending_claims"
+  ],
+  "capabilities": {
+    "specAudit": true,
+    "securityAudit": true,
+    "stateMachineAudit": true,
+    "rbacAudit": true,
+    "allowFileMutation": false
+  }
+}

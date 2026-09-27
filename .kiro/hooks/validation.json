@@ -1,0 +1,27 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "CampusConnect TypeScript Code Quality Check",
+      "trigger": "PostToolUse",
+      "matcher": ".*\\.(ts|tsx)$",
+      "description": "Automatically validates TypeScript compilation on code modification to prevent regressions.",
+      "action": {
+        "type": "command",
+        "command": "npx tsc --noEmit",
+        "timeout": 30
+      }
+    },
+    {
+      "name": "CampusConnect Unit Test Quality Gate",
+      "trigger": "PreCommit",
+      "matcher": ".*",
+      "description": "Runs fast unit test verification before git commit.",
+      "action": {
+        "type": "command",
+        "command": "npm test",
+        "timeout": 60
+      }
+    }
+  ]
+}
