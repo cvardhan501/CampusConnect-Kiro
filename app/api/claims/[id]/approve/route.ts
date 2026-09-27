@@ -9,9 +9,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   try {
-    const claim = await ClaimService.approveClaim(params.id, payload.sub);
+    const claim = await ClaimService.approveClaim(params.id, payload.sub, payload.role);
     return NextResponse.json({ message: 'Claim approved successfully', claim });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Failed to approve claim' }, { status: 400 });
+    const status = err.statusCode || 400;
+    return NextResponse.json({ error: err.message || 'Failed to approve claim' }, { status });
   }
 }

@@ -12,6 +12,8 @@ const PROTECTED_ROUTES = [
   '/notifications',
   '/profile',
   '/admin',
+  '/staff',
+  '/claims',
   '/search',
 ];
 
@@ -48,8 +50,13 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 
-  // Admin route check
+  // Admin route check: only Administrators can access /admin
   if (pathname.startsWith('/admin') && userRole !== 'Administrator') {
+    return NextResponse.redirect(new URL('/dashboard', req.url));
+  }
+
+  // Staff route check: only Staff and Administrators can access /staff
+  if (pathname.startsWith('/staff') && userRole !== 'Staff' && userRole !== 'Administrator') {
     return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 

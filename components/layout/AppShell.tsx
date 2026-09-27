@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { MobileBottomNav } from './MobileBottomNav';
@@ -13,7 +13,35 @@ export interface AppShellProps {
 
 export const AppShell: React.FC<AppShellProps> = ({ children, initialRole = 'student' }) => {
   const [role, setRole] = useState<'student' | 'staff' | 'admin'>(initialRole);
-  const currentUser: DemoUser = DEMO_USERS[role] || DEMO_USERS.student;
+  const [userOverride, setUserOverride] = useState<DemoUser | null>(null);
+
+  useEffect(() => {
+    async function syncAuthUser() {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            const mappedRole = (data.user.role?.toLowerCase() || 'student') as 'student' | 'staff' | 'admin';
+            setRole(mappedRole);
+            setUserOverride({
+              id: data.user.id,
+              name: data.user.displayName,
+              email: data.user.email,
+              role: mappedRole,
+              studentId: data.user.campusId,
+              department: data.user.department || 'Campus Community',
+            });
+          }
+        }
+      } catch {
+        /* silent fallback */
+      }
+    }
+    syncAuthUser();
+  }, []);
+
+  const currentUser: DemoUser = userOverride || DEMO_USERS[role] || DEMO_USERS.student;
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col md:flex-row antialiased">

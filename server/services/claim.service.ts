@@ -58,15 +58,21 @@ export class ClaimService {
     return claim;
   }
 
-  static async approveClaim(claimId: string, actingUserId: string): Promise<IClaim> {
+  static async approveClaim(claimId: string, actingUserId: string, actingUserRole?: string): Promise<IClaim> {
     await connectToDatabase();
 
     const claim = await Claim.findById(claimId).populate('foundItemId');
     if (!claim) throw new Error('Claim not found');
 
     const item = claim.foundItemId as any;
-    if (item.reportedBy.toString() !== actingUserId) {
-      throw new Error('Only the item poster can approve claims for this item');
+    const posterId = item.reportedBy.toString();
+    const isPoster = posterId === actingUserId;
+    const isStaffOrAdmin = actingUserRole === 'Staff' || actingUserRole === 'Administrator';
+
+    if (!isPoster && !isStaffOrAdmin) {
+      const err = new Error('Only the item poster, Staff, or Administrator can approve claims');
+      (err as any).statusCode = 403;
+      throw err;
     }
 
     claim.status = 'Approved';
@@ -123,15 +129,26 @@ export class ClaimService {
     return claim;
   }
 
-  static async rejectClaim(claimId: string, actingUserId: string, rejectionReason: string): Promise<IClaim> {
+  static async rejectClaim(
+    claimId: string,
+    actingUserId: string,
+    rejectionReason: string,
+    actingUserRole?: string
+  ): Promise<IClaim> {
     await connectToDatabase();
 
     const claim = await Claim.findById(claimId).populate('foundItemId');
     if (!claim) throw new Error('Claim not found');
 
     const item = claim.foundItemId as any;
-    if (item.reportedBy.toString() !== actingUserId) {
-      throw new Error('Only the item poster can reject claims for this item');
+    const posterId = item.reportedBy.toString();
+    const isPoster = posterId === actingUserId;
+    const isStaffOrAdmin = actingUserRole === 'Staff' || actingUserRole === 'Administrator';
+
+    if (!isPoster && !isStaffOrAdmin) {
+      const err = new Error('Only the item poster, Staff, or Administrator can reject claims');
+      (err as any).statusCode = 403;
+      throw err;
     }
 
     claim.status = 'Rejected';
