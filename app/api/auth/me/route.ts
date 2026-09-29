@@ -39,8 +39,9 @@ export async function GET(req: NextRequest) {
         campusId: user.campusId,
         role: user.role,
         status: user.status,
-        department: user.department,
-        phoneNumber: user.phoneNumber,
+        department: user.department || 'Not provided',
+        phoneNumber: user.phoneNumber || user.contactPhone || 'Not provided',
+        contactPhone: user.contactPhone || user.phoneNumber || 'Not provided',
         createdAt: user.createdAt,
       },
     });

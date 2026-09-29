@@ -13,14 +13,14 @@ export default function ProfilePage() {
     fetch('/api/auth/me')
       .then((res) => (res.ok ? res.json() : { user: null }))
       .then((data) => {
-        if (data.user) {
+        if (data?.user) {
           setUser({
-            name: data.user.name || data.user.displayName || 'Campus User',
-            email: data.user.email || '',
+            name: data.user.displayName || 'Campus User',
+            email: data.user.email || 'Not provided',
             role: data.user.role || 'Student',
-            department: data.user.department || 'General',
-            studentId: data.user.campusId || data.user.studentId || 'CC-ACTIVE',
-            phone: data.user.phone || 'N/A',
+            department: data.user.department || 'Not provided',
+            studentId: data.user.campusId || 'Not provided',
+            phone: data.user.contactPhone || data.user.phoneNumber || 'Not provided',
           });
         }
       })

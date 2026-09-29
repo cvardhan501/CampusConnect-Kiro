@@ -59,8 +59,8 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
           email: data.user.email,
           role: mappedRole,
           studentId: data.user.campusId,
-          department: data.user.department || 'Campus Community',
-          phoneNumber: data.user.phoneNumber || 'N/A',
+          department: data.user.department || 'Not provided',
+          phoneNumber: data.user.phoneNumber || 'Not provided',
         });
         setAuthorized(true);
       } catch {

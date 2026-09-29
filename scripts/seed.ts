@@ -22,7 +22,7 @@ async function seed() {
     {
       email: 'student.demo@campusconnect.local',
       passwordHash,
-      displayName: 'Vishnu Vardhan',
+      displayName: 'Student User',
       campusId: 'CC-DEMO-001',
       role: 'Student',
       status: 'Active',
