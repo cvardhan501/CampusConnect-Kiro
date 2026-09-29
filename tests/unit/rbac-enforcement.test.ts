@@ -8,18 +8,30 @@ vi.mock('@/server/db/connection', () => ({
 
 vi.mock('@/server/models/Issue', () => ({
   Issue: {
-    find: vi.fn().mockReturnValue({
-      sort: vi.fn().mockReturnValue({
-        limit: vi.fn().mockReturnValue({
-          populate: vi.fn().mockResolvedValue([
-            {
-              _id: 'issue_user_a_1',
-              title: 'Leaking faucet',
-              reporter: 'user_a_id',
-            },
-          ]),
+    find: vi.fn().mockImplementation((queryObj) => {
+      const mockData = [
+        {
+          _id: 'issue_user_a_1',
+          title: 'Student A test issue',
+          reporter: 'user_a_id',
+        },
+        {
+          _id: 'issue_user_b_1',
+          title: 'Student B test issue',
+          reporter: 'user_b_id',
+        },
+      ];
+      const filtered = queryObj.reporter
+        ? mockData.filter((i) => i.reporter === queryObj.reporter)
+        : mockData;
+
+      return {
+        sort: vi.fn().mockReturnValue({
+          limit: vi.fn().mockReturnValue({
+            populate: vi.fn().mockResolvedValue(filtered),
+          }),
         }),
-      }),
+      };
     }),
   },
 }));
@@ -40,11 +52,18 @@ describe('Task 10 — Real Data & Strict RBAC Verification Tests', () => {
   it('4. User A issue queries filter strictly by reporterId (Data Isolation)', async () => {
     const data = await SearchService.searchIssues({ reporterId: 'user_a_id' });
     expect(data.results).toBeDefined();
-    expect(data.results.length).toBeGreaterThan(0);
-    expect(data.results[0].reporter).toBe('user_a_id');
+    expect(data.results.length).toBe(1);
+    expect(data.results[0].title).toBe('Student A test issue');
   });
 
-  it('5. Role ranking is immutable: Student (1) < Staff (2) < Administrator (3)', () => {
+  it('5. User B cannot see User A issues', async () => {
+    const dataB = await SearchService.searchIssues({ reporterId: 'user_b_id' });
+    expect(dataB.results).toBeDefined();
+    expect(dataB.results.length).toBe(1);
+    expect(dataB.results[0].title).toBe('Student B test issue');
+  });
+
+  it('6. Role ranking is immutable: Student (1) < Staff (2) < Administrator (3)', () => {
     expect(hasRolePermission('Student', 'Staff')).toBe(false);
     expect(hasRolePermission('Staff', 'Student')).toBe(true);
     expect(hasRolePermission('Administrator', 'Staff')).toBe(true);

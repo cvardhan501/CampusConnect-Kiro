@@ -98,9 +98,14 @@ export default function MyIssuesPage() {
               <p className="text-center text-xs text-slate-400 py-8">Loading issues...</p>
             ) : filteredIssues.length === 0 ? (
               <EmptyState
-                title="No issues found"
-                description="Report your first campus issue to get started."
+                title="No issues reported yet"
+                description="Report a campus issue and track its progress here."
                 icon={<Wrench className="w-8 h-8 text-[#2563eb]" />}
+                action={
+                  <Link href="/issues/new">
+                    <Button icon={<Plus className="w-4 h-4" />}>Report Issue</Button>
+                  </Link>
+                }
               />
             ) : (
               filteredIssues.map((issue) => <IssueCard key={issue._id || issue.id} issue={issue} />)

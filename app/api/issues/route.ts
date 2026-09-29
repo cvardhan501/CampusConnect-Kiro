@@ -15,10 +15,15 @@ export async function GET(req: NextRequest) {
   const category = searchParams.get('category') || undefined;
   const status = searchParams.get('status') || undefined;
   const location = searchParams.get('location') || undefined;
-  const reporterId = searchParams.get('reporterId') || undefined;
+  let reporterId = searchParams.get('reporterId') || undefined;
   const assignedTo = searchParams.get('assignedTo') || undefined;
   const cursor = searchParams.get('cursor') || undefined;
   const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!, 10) : 25;
+
+  // Strict Data Isolation Rule: Student accounts can ONLY query issues they reported
+  if (payload.role === 'Student') {
+    reporterId = payload.sub;
+  }
 
   const data = await SearchService.searchIssues({
     query: search,

@@ -18,12 +18,10 @@ import {
   History,
   FileText,
   School,
-  ArrowLeftRight,
 } from 'lucide-react';
 
 export interface SidebarProps {
   currentRole: 'student' | 'staff' | 'admin';
-  onRoleChange?: (role: 'student' | 'staff' | 'admin') => void;
 }
 
 interface NavItem {
@@ -33,7 +31,7 @@ interface NavItem {
   hasBadge?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentRole, onRoleChange }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentRole }) => {
   const pathname = usePathname();
 
   const studentNavItems: NavItem[] = [
