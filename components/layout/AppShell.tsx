@@ -54,8 +54,11 @@ export const AppShell: React.FC<AppShellProps> = ({ children, initialRole = 'stu
         <Header user={currentUser} />
 
         {/* Workspace Area */}
-        <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto pb-20 md:pb-8">
-          {children}
+        <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto pb-20 md:pb-8 flex flex-col justify-between">
+          <div>{children}</div>
+          <footer className="mt-8 pt-4 border-t border-slate-200/80 text-center text-xs text-slate-400 font-medium">
+            CampusConnect • Kiro University 2026
+          </footer>
         </main>
       </div>
 
