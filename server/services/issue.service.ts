@@ -218,17 +218,15 @@ export class IssueService {
       throw err;
     }
 
-    // Staff department boundary enforcement (Req 2.3)
+    // Staff department & assignment boundary enforcement (Req 2.3)
     if (actingUserRole === 'Staff') {
       const staffUser = await User.findById(actingUserId);
-      if (staffUser && staffUser.department) {
-        const issueDept = issue.department || issue.category;
-        const isAssignedToStaff = issue.assignedTo && issue.assignedTo.toString() === actingUserId;
-        if (issueDept && issueDept !== staffUser.department && !isAssignedToStaff) {
-          const err = new Error('Staff can only update issues within their assigned department or assigned to them');
-          (err as any).statusCode = 403;
-          throw err;
-        }
+      const isAssignedToStaff = issue.assignedTo && issue.assignedTo.toString() === actingUserId;
+      const issueDept = issue.department || issue.category;
+      if (!isAssignedToStaff && staffUser?.department && issueDept && issueDept !== staffUser.department) {
+        const err = new Error('Staff can only update issues within their assigned department or assigned to them');
+        (err as any).statusCode = 403;
+        throw err;
       }
     }
 

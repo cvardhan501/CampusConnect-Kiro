@@ -70,7 +70,8 @@ export class SearchService {
     const items = await Issue.find(queryObj)
       .sort({ createdAt: -1 })
       .limit(limit + 1)
-      .populate('reporter', 'displayName email role');
+      .populate('reporter', 'displayName email role')
+      .populate('assignedTo', 'displayName email role department');
 
     const hasNext = items.length > limit;
     const results = hasNext ? items.slice(0, limit) : items;

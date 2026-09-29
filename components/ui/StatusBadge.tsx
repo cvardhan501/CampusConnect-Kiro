@@ -14,24 +14,22 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' })
   switch (normalized) {
     case 'open':
     case 'reported':
-      label = 'Open';
-      styleClass = 'bg-red-50 text-red-600 border-red-200';
+    case 'underreview':
+    case 'assigned':
+    case 'verification':
+      label = 'Verification';
+      styleClass = 'bg-amber-50 text-amber-700 border-amber-200';
       break;
     case 'inprogress':
-      label = 'In Progress';
-      styleClass = 'bg-blue-50 text-blue-600 border-blue-200';
-      break;
-    case 'assigned':
-      label = 'Assigned';
-      styleClass = 'bg-orange-50 text-orange-600 border-orange-200';
+    case 'workinprocess':
+      label = 'Work in Process';
+      styleClass = 'bg-blue-50 text-[#2563eb] border-blue-200';
       break;
     case 'resolved':
-      label = 'Resolved';
-      styleClass = 'bg-emerald-50 text-emerald-600 border-emerald-200';
-      break;
     case 'verified':
-      label = 'Verified';
-      styleClass = 'bg-teal-50 text-teal-700 border-teal-200';
+    case 'completed':
+      label = 'Completed';
+      styleClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
       break;
     case 'searching':
       label = 'Searching';
@@ -40,10 +38,6 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' })
     case 'possiblematch':
       label = 'Possible Match';
       styleClass = 'bg-green-50 text-green-600 border-green-200';
-      break;
-    case 'underreview':
-      label = 'Under Review';
-      styleClass = 'bg-amber-50 text-amber-600 border-amber-200';
       break;
     case 'claimed':
     case 'approved':

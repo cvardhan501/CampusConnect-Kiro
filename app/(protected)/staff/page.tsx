@@ -4,51 +4,110 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
 import { StatCard } from '@/components/ui/StatCard';
-import { IssueCard } from '@/components/ui/IssueCard';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { PriorityBadge } from '@/components/ui/PriorityBadge';
+import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { ClipboardCheck, CheckCircle2, PackageCheck, Wrench } from 'lucide-react';
+import { Tabs } from '@/components/ui/Tabs';
+import { ClipboardCheck, CheckCircle2, PlayCircle, Wrench, MapPin, User, ArrowRight } from 'lucide-react';
 import { LastUpdatedIndicator } from '@/components/ui/LastUpdatedIndicator';
 
 export default function StaffDashboardPage() {
-  const [assignedIssues, setAssignedIssues] = useState<any[]>([]);
-  const [stats, setStats] = useState({ assigned: 0, foundItems: 0, pendingClaims: 0 });
+  const [issues, setIssues] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('Verification');
+
+  const fetchStaffIssues = async () => {
+    try {
+      const res = await fetch('/api/issues');
+      if (res.ok) {
+        const data = await res.json();
+        setIssues(data.issues || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch assigned staff issues:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/issues').then((res) => (res.ok ? res.json() : { issues: [] })),
-      fetch('/api/lost-found').then((res) => (res.ok ? res.json() : { items: [] })),
-      fetch('/api/claims').then((res) => (res.ok ? res.json() : { claims: [] })),
-    ])
-      .then(([issuesData, itemsData, claimsData]) => {
-        const issues = issuesData.issues || [];
-        const items = itemsData.items || [];
-        const claims = claimsData.claims || [];
-
-        const mappedIssues = issues.map((raw: any) => ({
-          id: raw._id || raw.id,
-          issueNumber: raw.issueNumber || `ISS-${(raw._id || '').slice(-4).toUpperCase()}`,
-          title: raw.title,
-          description: raw.description,
-          status: raw.status,
-          priority: raw.priority,
-          category: raw.category,
-          building: raw.building || raw.location || 'Main Campus',
-          room: raw.room || '',
-          reportedBy: raw.reporter?.displayName || raw.reportedBy || 'Campus User',
-          createdAt: new Date(raw.createdAt).toLocaleDateString(),
-        }));
-
-        setAssignedIssues(mappedIssues);
-        setStats({
-          assigned: issues.length,
-          foundItems: items.filter((i: any) => i.type === 'Found').length,
-          pendingClaims: claims.filter((c: any) => c.status === 'Pending').length,
-        });
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    fetchStaffIssues();
+    const interval = setInterval(fetchStaffIssues, 10000);
+    return () => clearInterval(interval);
   }, []);
+
+  const handleStartWork = async (issueId: string) => {
+    setUpdatingId(issueId);
+    try {
+      const res = await fetch(`/api/issues/${issueId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'In_Progress' }),
+      });
+
+      if (res.ok) {
+        await fetchStaffIssues();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Failed to start work on issue');
+      }
+    } catch {
+      alert('Error updating issue status');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleMarkCompleted = async (issueId: string) => {
+    const note = prompt(
+      'Please enter a brief resolution note for this issue (at least 20 characters):',
+      'Maintenance work completed and verified on site.'
+    );
+    if (note === null) return;
+    if (note.trim().length < 20) {
+      alert('Resolution note must be at least 20 characters.');
+      return;
+    }
+
+    setUpdatingId(issueId);
+    try {
+      const res = await fetch(`/api/issues/${issueId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Resolved', resolutionNote: note.trim() }),
+      });
+
+      if (res.ok) {
+        await fetchStaffIssues();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Failed to mark issue completed');
+      }
+    } catch {
+      alert('Error completing issue');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const verificationIssues = issues.filter((i) => ['Reported', 'Under_Review', 'Assigned'].includes(i.status));
+  const workInProcessIssues = issues.filter((i) => i.status === 'In_Progress');
+  const completedIssues = issues.filter((i) => ['Resolved', 'Verified'].includes(i.status));
+
+  const tabs = [
+    { id: 'Verification', label: `Verification (${verificationIssues.length})` },
+    { id: 'In_Progress', label: `Work in Process (${workInProcessIssues.length})` },
+    { id: 'Completed', label: `Completed (${completedIssues.length})` },
+  ];
+
+  const currentTabIssues =
+    activeTab === 'Verification'
+      ? verificationIssues
+      : activeTab === 'In_Progress'
+      ? workInProcessIssues
+      : completedIssues;
 
   return (
     <AppShell initialRole="staff">
@@ -56,8 +115,8 @@ export default function StaffDashboardPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Staff Dashboard</h1>
-            <p className="text-sm text-slate-500 font-medium">Manage your assigned tasks and campus claims.</p>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Staff Workspace</h1>
+            <p className="text-sm text-slate-500 font-medium">Manage and resolve maintenance issues assigned specifically to you.</p>
           </div>
           <LastUpdatedIndicator />
         </div>
@@ -65,46 +124,120 @@ export default function StaffDashboardPage() {
         {/* 3 Stat Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <StatCard
-            title="Assigned Issues"
-            count={stats.assigned}
-            icon={<ClipboardCheck className="w-6 h-6 text-[#2563eb]" />}
+            title="Assigned Verification"
+            count={verificationIssues.length}
+            icon={<ClipboardCheck className="w-6 h-6 text-amber-600" />}
+            iconBgColor="bg-amber-50"
+          />
+          <StatCard
+            title="Work in Process"
+            count={workInProcessIssues.length}
+            icon={<PlayCircle className="w-6 h-6 text-blue-600" />}
             iconBgColor="bg-blue-50"
           />
           <StatCard
-            title="Found Items"
-            count={stats.foundItems}
+            title="Completed"
+            count={completedIssues.length}
             icon={<CheckCircle2 className="w-6 h-6 text-emerald-600" />}
             iconBgColor="bg-emerald-50"
           />
-          <StatCard
-            title="Pending Claims"
-            count={stats.pendingClaims}
-            icon={<PackageCheck className="w-6 h-6 text-amber-600" />}
-            iconBgColor="bg-amber-50"
-          />
         </div>
 
-        {/* Section: Recent Assigned Issues */}
-        <div className="space-y-4">
+        {/* Workflow Section */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-900">Recent Assigned Issues</h2>
-            <Link href="/staff/issues" className="text-xs font-bold text-[#2563eb] hover:underline">
-              View all
+            <h2 className="text-lg font-bold text-slate-900">Assigned Problems Queue</h2>
+            <Link href="/staff/issues" className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1">
+              View all tasks <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
+          <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} variant="underlined" />
+
           {loading ? (
-            <div className="text-center py-12 text-sm text-slate-500">Loading assigned tasks...</div>
-          ) : assignedIssues.length === 0 ? (
+            <div className="text-center py-12 text-sm text-slate-500">Loading assigned issues...</div>
+          ) : currentTabIssues.length === 0 ? (
             <EmptyState
-              icon={<Wrench className="w-8 h-8" />}
-              title="No Assigned Issues"
-              description="There are currently no maintenance or facility issues assigned to your staff scope."
+              icon={<Wrench className="w-8 h-8 text-blue-600" />}
+              title={`No Issues in ${activeTab.replace('_', ' ')}`}
+              description="There are currently no assigned issues in this workflow stage."
             />
           ) : (
-            <div className="space-y-3">
-              {assignedIssues.slice(0, 5).map((issue) => (
-                <IssueCard key={issue.id} issue={issue} showPriority />
+            <div className="space-y-4">
+              {currentTabIssues.map((issue) => (
+                <div
+                  key={issue._id}
+                  className="p-5 rounded-2xl border border-slate-200/80 bg-white shadow-sm space-y-4 hover:border-blue-200 transition-all"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={issue.status} />
+                      <PriorityBadge priority={issue.priority} />
+                      <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-md">
+                        {issue.category}
+                      </span>
+                    </div>
+                    <span className="text-xs text-slate-400 font-medium">
+                      Reported {new Date(issue.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <h3 className="text-base font-bold text-slate-900">{issue.title}</h3>
+                    <p className="text-xs text-slate-600 leading-relaxed">{issue.description}</p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-4 pt-2 text-xs text-slate-500 font-medium">
+                    <div className="flex flex-wrap items-center gap-4">
+                      <span className="flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                        {issue.location}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-slate-400" />
+                        Reporter: {issue.reporter?.displayName || 'Student'}
+                      </span>
+                    </div>
+
+                    {/* Step Action Buttons */}
+                    <div className="flex items-center gap-2">
+                      {['Reported', 'Under_Review', 'Assigned'].includes(issue.status) && (
+                        <Button
+                          size="sm"
+                          disabled={updatingId === issue._id}
+                          onClick={() => handleStartWork(issue._id)}
+                          icon={<PlayCircle className="w-4 h-4" />}
+                        >
+                          {updatingId === issue._id ? 'Updating...' : 'Start Work'}
+                        </Button>
+                      )}
+
+                      {issue.status === 'In_Progress' && (
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          disabled={updatingId === issue._id}
+                          onClick={() => handleMarkCompleted(issue._id)}
+                          icon={<CheckCircle2 className="w-4 h-4" />}
+                        >
+                          {updatingId === issue._id ? 'Updating...' : 'Mark Completed'}
+                        </Button>
+                      )}
+
+                      {['Resolved', 'Verified'].includes(issue.status) && (
+                        <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Work Completed
+                        </span>
+                      )}
+
+                      <Link href={`/issues/${issue._id}`}>
+                        <Button size="sm" variant="secondary">
+                          View Details
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -113,4 +246,5 @@ export default function StaffDashboardPage() {
     </AppShell>
   );
 }
+
 

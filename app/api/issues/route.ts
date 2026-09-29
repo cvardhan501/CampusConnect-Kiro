@@ -16,13 +16,17 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get('status') || undefined;
   const location = searchParams.get('location') || undefined;
   let reporterId = searchParams.get('reporterId') || undefined;
-  const assignedTo = searchParams.get('assignedTo') || undefined;
+  let assignedTo = searchParams.get('assignedTo') || undefined;
   const cursor = searchParams.get('cursor') || undefined;
   const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!, 10) : 25;
 
-  // Strict Data Isolation Rule: Student accounts can ONLY query issues they reported
+  // Strict Data Isolation Rule:
+  // Student accounts can ONLY query issues they reported
+  // Staff accounts can ONLY query issues assigned to them
   if (payload.role === 'Student') {
     reporterId = payload.sub;
+  } else if (payload.role === 'Staff') {
+    assignedTo = payload.sub;
   }
 
   const data = await SearchService.searchIssues({

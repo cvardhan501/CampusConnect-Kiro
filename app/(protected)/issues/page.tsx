@@ -21,20 +21,13 @@ export default function MyIssuesPage() {
 
     async function fetchIssues() {
       try {
-        const meRes = await fetch('/api/auth/me');
-        if (meRes.ok) {
-          const meData = await meRes.json();
-          if (meData.user?.id) {
-            const res = await fetch(`/api/issues?reporterId=${meData.user.id}`);
-            if (res.ok) {
-              const data = await res.json();
-              const fetchedIssues = Array.isArray(data.issues) ? data.issues : Array.isArray(data) ? data : [];
-              setIssues(fetchedIssues);
-            }
-          }
+        const res = await fetch('/api/issues');
+        if (res.ok) {
+          const data = await res.json();
+          setIssues(data.issues || []);
         }
       } catch (err) {
-        console.error('Failed to fetch issues:', err);
+        console.error('Failed to fetch my issues:', err);
       } finally {
         setLoading(false);
       }
@@ -47,17 +40,22 @@ export default function MyIssuesPage() {
   }, []);
 
   const tabs = [
-    { id: 'All', label: 'All' },
-    { id: 'Reported', label: 'Reported' },
-    { id: 'In_Progress', label: 'In Progress' },
-    { id: 'Resolved', label: 'Resolved' },
-    { id: 'Verified', label: 'Verified' },
+    { id: 'All', label: 'All Issues' },
+    { id: 'Verification', label: 'Verification' },
+    { id: 'In_Progress', label: 'Work in Process' },
+    { id: 'Completed', label: 'Completed' },
   ];
 
   const filteredIssues = issues.filter((issue) => {
-    const matchesTab =
-      activeTab === 'All' ||
-      issue.status === activeTab;
+    let matchesTab = true;
+    if (activeTab === 'Verification') {
+      matchesTab = ['Reported', 'Under_Review', 'Assigned'].includes(issue.status);
+    } else if (activeTab === 'In_Progress') {
+      matchesTab = issue.status === 'In_Progress';
+    } else if (activeTab === 'Completed') {
+      matchesTab = ['Resolved', 'Verified'].includes(issue.status);
+    }
+
     const searchLower = searchQuery.toLowerCase();
     const titleMatch = issue.title?.toLowerCase().includes(searchLower);
     const categoryMatch = issue.category?.toLowerCase().includes(searchLower);
