@@ -13,17 +13,10 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get('redirect') || '/dashboard';
 
-  const [role, setRole] = useState('student');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const roleTabs = [
-    { id: 'student', label: 'Student' },
-    { id: 'staff', label: 'Staff' },
-    { id: 'admin', label: 'Admin' },
-  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,8 +75,6 @@ function LoginForm() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <Tabs tabs={roleTabs} activeTab={role} onChange={setRole} variant="segmented" />
-
           <div className="space-y-4">
             <Input
               label="Email or Student ID"

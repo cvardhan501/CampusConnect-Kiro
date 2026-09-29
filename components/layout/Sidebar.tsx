@@ -108,45 +108,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRole, onRoleChange }) =
         })}
       </nav>
 
-      {/* Role Switcher for Visual Testing */}
-      {onRoleChange && (
-        <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <ArrowLeftRight className="w-3 h-3" /> View Role
-            </span>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-[#2563eb] capitalize">
-              {currentRole}
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-1">
-            <button
-              onClick={() => onRoleChange('student')}
-              className={`py-1 text-[11px] font-bold rounded-lg ${
-                currentRole === 'student' ? 'bg-[#2563eb] text-white' : 'bg-white text-slate-600 border border-slate-200'
-              }`}
-            >
-              Student
-            </button>
-            <button
-              onClick={() => onRoleChange('staff')}
-              className={`py-1 text-[11px] font-bold rounded-lg ${
-                currentRole === 'staff' ? 'bg-[#2563eb] text-white' : 'bg-white text-slate-600 border border-slate-200'
-              }`}
-            >
-              Staff
-            </button>
-            <button
-              onClick={() => onRoleChange('admin')}
-              className={`py-1 text-[11px] font-bold rounded-lg ${
-                currentRole === 'admin' ? 'bg-[#2563eb] text-white' : 'bg-white text-slate-600 border border-slate-200'
-              }`}
-            >
-              Admin
-            </button>
-          </div>
-        </div>
-      )}
     </aside>
   );
 };

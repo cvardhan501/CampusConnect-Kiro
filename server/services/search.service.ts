@@ -7,6 +7,8 @@ export interface SearchFilterInput {
   category?: string;
   status?: string;
   location?: string;
+  reporterId?: string;
+  assignedTo?: string;
   startDate?: string;
   endDate?: string;
   cursor?: string;
@@ -23,6 +25,14 @@ export class SearchService {
 
     const queryObj: any = {};
     const limit = Math.min(filters.limit || 25, 25);
+
+    if (filters.reporterId) {
+      queryObj.reporter = filters.reporterId;
+    }
+
+    if (filters.assignedTo) {
+      queryObj.assignedTo = filters.assignedTo;
+    }
 
     if (filters.query && filters.query.trim()) {
       queryObj.$or = [

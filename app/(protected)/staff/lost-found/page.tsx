@@ -1,11 +1,36 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { LostFoundCard } from '@/components/ui/LostFoundCard';
-import { DEMO_LOST_FOUND_ITEMS } from '@/lib/demo-data';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Package } from 'lucide-react';
 
 export default function StaffLostFoundPage() {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/lost-found')
+      .then((res) => (res.ok ? res.json() : { items: [] }))
+      .then((data) => {
+        const mapped = (data.items || []).map((raw: any) => ({
+          id: raw._id || raw.id,
+          name: raw.title || raw.name,
+          description: raw.description,
+          type: raw.type,
+          status: raw.status,
+          category: raw.category,
+          location: raw.location,
+          reportedBy: raw.reportedBy?.displayName || 'Campus User',
+          date: new Date(raw.createdAt || Date.now()).toLocaleDateString(),
+        }));
+        setItems(mapped);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <AppShell initialRole="staff">
       <div className="space-y-6">
@@ -14,14 +39,25 @@ export default function StaffLostFoundPage() {
           <p className="text-sm text-slate-500 font-medium">Log found items, manage storage, and verify claims.</p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
-          <div className="space-y-3">
-            {DEMO_LOST_FOUND_ITEMS.map((item) => (
-              <LostFoundCard key={item.id} item={item} />
-            ))}
+        {loading ? (
+          <div className="text-center py-12 text-sm text-slate-500">Loading items...</div>
+        ) : items.length === 0 ? (
+          <EmptyState
+            icon={<Package className="w-8 h-8" />}
+            title="No Items Found"
+            description="There are currently no items logged in the Lost & Found system."
+          />
+        ) : (
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
+            <div className="space-y-3">
+              {items.map((item) => (
+                <LostFoundCard key={item.id} item={item} />
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </AppShell>
   );
 }
+

@@ -10,7 +10,13 @@ export async function GET(req: NextRequest) {
   }
 
   await connectToDatabase();
-  const claims = await Claim.find({ claimantId: payload.sub })
+  let query: any = {};
+  if (payload.role === 'Student') {
+    query.claimantId = payload.sub;
+  }
+
+  const claims = await Claim.find(query)
+    .populate('claimantId', 'displayName email campusId department')
     .populate('foundItemId', 'title location type imageUrl status')
     .sort({ createdAt: -1 });
 

@@ -24,13 +24,15 @@ export async function middleware(req: NextRequest) {
   const token = req.cookies.get('accessToken')?.value;
 
   let isValidToken = false;
-  let userRole = 'Student';
+  let normalizedRole = 'Student';
 
   if (token) {
     try {
       const { payload } = await jwtVerify(token, JWT_SECRET);
       isValidToken = true;
-      userRole = (payload.role as string) || 'Student';
+      const rawRole = (payload.role as string) || 'Student';
+      const lower = rawRole.toLowerCase();
+      normalizedRole = lower === 'administrator' || lower === 'admin' ? 'Administrator' : lower === 'staff' ? 'Staff' : 'Student';
     } catch {
       isValidToken = false;
     }
@@ -51,12 +53,12 @@ export async function middleware(req: NextRequest) {
   }
 
   // Admin route check: only Administrators can access /admin
-  if (pathname.startsWith('/admin') && userRole !== 'Administrator') {
+  if (pathname.startsWith('/admin') && normalizedRole !== 'Administrator') {
     return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 
   // Staff route check: only Staff and Administrators can access /staff
-  if (pathname.startsWith('/staff') && userRole !== 'Staff' && userRole !== 'Administrator') {
+  if (pathname.startsWith('/staff') && normalizedRole !== 'Staff' && normalizedRole !== 'Administrator') {
     return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 

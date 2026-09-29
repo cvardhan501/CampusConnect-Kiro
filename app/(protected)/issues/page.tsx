@@ -1,37 +1,68 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
 import { Tabs } from '@/components/ui/Tabs';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { IssueCard } from '@/components/ui/IssueCard';
 import { Button } from '@/components/ui/Button';
-import { Plus } from 'lucide-react';
-import { DEMO_ISSUES } from '@/lib/demo-data';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Plus, Wrench } from 'lucide-react';
 
 export default function MyIssuesPage() {
   const [activeTab, setActiveTab] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [issues, setIssues] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    async function fetchIssues() {
+      try {
+        const meRes = await fetch('/api/auth/me');
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          if (meData.user?.id) {
+            const res = await fetch(`/api/issues?reporterId=${meData.user.id}`);
+            if (res.ok) {
+              const data = await res.json();
+              const fetchedIssues = Array.isArray(data.issues) ? data.issues : Array.isArray(data) ? data : [];
+              setIssues(fetchedIssues);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch issues:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchIssues();
+    intervalId = setInterval(fetchIssues, 10000);
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   const tabs = [
     { id: 'All', label: 'All' },
-    { id: 'Open', label: 'Open' },
+    { id: 'Reported', label: 'Reported' },
     { id: 'In_Progress', label: 'In Progress' },
     { id: 'Resolved', label: 'Resolved' },
     { id: 'Verified', label: 'Verified' },
   ];
 
-  const filteredIssues = DEMO_ISSUES.filter((issue) => {
+  const filteredIssues = issues.filter((issue) => {
     const matchesTab =
       activeTab === 'All' ||
-      (activeTab === 'Open' && (issue.status === 'Reported' || (issue.status as string) === 'Open')) ||
-      (activeTab === 'In_Progress' && (issue.status === 'In_Progress' || (issue.status as string) === 'In Progress')) ||
       issue.status === activeTab;
-    const matchesSearch =
-      issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      issue.building.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      issue.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const searchLower = searchQuery.toLowerCase();
+    const titleMatch = issue.title?.toLowerCase().includes(searchLower);
+    const categoryMatch = issue.category?.toLowerCase().includes(searchLower);
+    const locationMatch = issue.location?.toLowerCase().includes(searchLower);
+    const matchesSearch = !searchQuery || titleMatch || categoryMatch || locationMatch;
     return matchesTab && matchesSearch;
   });
 
@@ -63,10 +94,16 @@ export default function MyIssuesPage() {
 
           {/* Issue List */}
           <div className="space-y-3">
-            {filteredIssues.length === 0 ? (
-              <p className="text-center text-sm text-slate-400 py-8">No issues found matching your criteria.</p>
+            {loading ? (
+              <p className="text-center text-xs text-slate-400 py-8">Loading issues...</p>
+            ) : filteredIssues.length === 0 ? (
+              <EmptyState
+                title="No issues found"
+                description="Report your first campus issue to get started."
+                icon={<Wrench className="w-8 h-8 text-[#2563eb]" />}
+              />
             ) : (
-              filteredIssues.map((issue) => <IssueCard key={issue.id} issue={issue} />)
+              filteredIssues.map((issue) => <IssueCard key={issue._id || issue.id} issue={issue} />)
             )}
           </div>
         </div>

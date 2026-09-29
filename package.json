@@ -9,7 +9,7 @@
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed": "node --import tsx/esm scripts/seed.ts"
+    "seed:demo": "node --import tsx/esm scripts/seed.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
