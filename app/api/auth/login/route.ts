@@ -2,18 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { LoginSchema } from '@/server/validators/auth.validator';
 import { AuthService } from '@/server/services/auth.service';
 import { setAuthCookies } from '@/server/utils/jwt';
-import { checkAuthIpRateLimit, createRateLimitResponse } from '@/server/utils/rateLimiter';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
-    const rateCheck = checkAuthIpRateLimit(ip);
-    if (!rateCheck.allowed && rateCheck.retryAfterSeconds) {
-      return createRateLimitResponse(rateCheck.retryAfterSeconds);
-    }
-
     const body = await req.json();
     const validated = LoginSchema.parse(body);
 
@@ -47,10 +40,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const statusCode = err.message?.includes('locked') ? 429 : 401;
     return NextResponse.json(
       { error: err.message || 'Invalid email/campus ID or password' },
-      { status: statusCode }
+      { status: 401 }
     );
   }
 }

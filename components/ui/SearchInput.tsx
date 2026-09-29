@@ -1,24 +1,20 @@
 import React from 'react';
 import { Search } from 'lucide-react';
 
-export interface SearchInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  onSearch?: (value: string) => void;
-}
+export interface SearchInputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 
 export const SearchInput: React.FC<SearchInputProps> = ({
-  placeholder = 'Search...',
+  placeholder = 'Search requests...',
   className = '',
-  onChange,
   ...props
 }) => {
   return (
-    <div className="relative w-full">
-      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+    <div className={`relative flex items-center w-full ${className}`}>
+      <Search className="absolute left-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
       <input
         type="text"
         placeholder={placeholder}
-        onChange={onChange}
-        className={`w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-xs text-slate-900 placeholder-slate-400 focus:border-[#2563eb] focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all ${className}`}
+        className="w-full pl-10 pr-4 py-2 text-xs font-medium bg-slate-50 border border-slate-200/90 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#2563eb] focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all"
         {...props}
       />
     </div>

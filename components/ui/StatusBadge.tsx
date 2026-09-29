@@ -1,66 +1,57 @@
 import React from 'react';
 
+export type CanonicalStatus =
+  | 'Reported'
+  | 'Under_Review'
+  | 'Assigned'
+  | 'In_Progress'
+  | 'Resolved'
+  | 'Verified'
+  | 'Verification'
+  | 'Work in Process'
+  | 'Completed'
+  | 'New'
+  | 'Pending'
+  | 'Active'
+  | 'Open'
+  | 'Claimed'
+  | string;
+
 export interface StatusBadgeProps {
-  status: string;
-  size?: 'sm' | 'md';
+  status: CanonicalStatus;
+  userFacing?: boolean;
 }
 
-export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' }) => {
+export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, userFacing = true }) => {
+  const norm = (status || '').toString().toLowerCase();
+
   let label = status;
-  let styleClass = 'bg-blue-50 text-[#2563eb] border-blue-200';
+  let bgClass = 'bg-slate-100 text-slate-700 border-slate-200';
 
-  const normalized = status.toLowerCase().replace(/[\s_]+/g, '');
-
-  switch (normalized) {
-    case 'open':
-    case 'reported':
-    case 'underreview':
-    case 'assigned':
-    case 'verification':
-      label = 'Verification';
-      styleClass = 'bg-amber-50 text-amber-700 border-amber-200';
-      break;
-    case 'inprogress':
-    case 'workinprocess':
-      label = 'Work in Process';
-      styleClass = 'bg-blue-50 text-[#2563eb] border-blue-200';
-      break;
-    case 'resolved':
-    case 'verified':
-    case 'completed':
-      label = 'Completed';
-      styleClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      break;
-    case 'searching':
-      label = 'Searching';
-      styleClass = 'bg-purple-50 text-purple-600 border-purple-200';
-      break;
-    case 'possiblematch':
-      label = 'Possible Match';
-      styleClass = 'bg-green-50 text-green-600 border-green-200';
-      break;
-    case 'claimed':
-    case 'approved':
-      label = status === 'approved' ? 'Approved' : 'Claimed';
-      styleClass = 'bg-emerald-50 text-emerald-600 border-emerald-200';
-      break;
-    case 'pending':
-      label = 'Pending';
-      styleClass = 'bg-amber-50 text-amber-600 border-amber-200';
-      break;
-    case 'rejected':
-      label = 'Rejected';
-      styleClass = 'bg-red-50 text-red-600 border-red-200';
-      break;
-    default:
-      label = status;
-      styleClass = 'bg-blue-50 text-[#2563eb] border-blue-200';
+  if (norm === 'reported' || norm === 'under_review' || norm === 'assigned' || norm === 'verification' || norm === 'pending') {
+    label = userFacing && norm !== 'pending' ? 'Verification' : norm === 'pending' ? 'Pending' : 'Reported';
+    bgClass = 'bg-amber-50 text-amber-700 border-amber-200/80';
+  } else if (norm === 'in_progress' || norm === 'work in process' || norm === 'active') {
+    label = userFacing && norm !== 'active' ? 'Work in Process' : norm === 'active' ? 'Active' : 'In Progress';
+    bgClass = 'bg-blue-50 text-[#2563eb] border-blue-200/80';
+  } else if (norm === 'resolved' || norm === 'verified' || norm === 'completed') {
+    label = userFacing ? 'Completed' : 'Resolved';
+    bgClass = 'bg-emerald-50 text-emerald-700 border-emerald-200/80';
+  } else if (norm === 'new') {
+    label = 'New';
+    bgClass = 'bg-sky-50 text-sky-700 border-sky-200/80';
+  } else if (norm === 'open') {
+    label = 'Open';
+    bgClass = 'bg-[#2563eb]/10 text-[#2563eb] border-blue-200';
+  } else if (norm === 'claimed') {
+    label = 'Claimed';
+    bgClass = 'bg-purple-50 text-purple-700 border-purple-200';
   }
 
-  const sizeClass = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-3 py-1 text-xs';
-
   return (
-    <span className={`rounded-full font-bold border inline-flex items-center gap-1 shrink-0 ${sizeClass} ${styleClass}`}>
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border transition-colors ${bgClass}`}
+    >
       {label}
     </span>
   );

@@ -1,36 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateRequest } from '@/server/utils/rbac';
-import { LostFoundService } from '@/server/services/lostfound.service';
-import { SearchService } from '@/server/services/search.service';
+import { connectToDatabase } from '@/server/db/connection';
+import { LostFoundItem } from '@/server/models/LostFound';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const payload = await authenticateRequest(req);
-  if (!payload) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+  await connectToDatabase();
   const { searchParams } = new URL(req.url);
   const type = searchParams.get('type') || undefined;
-  const category = searchParams.get('category') || undefined;
   const status = searchParams.get('status') || undefined;
-  const search = searchParams.get('search') || undefined;
-  const cursor = searchParams.get('cursor') || undefined;
-  const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!, 10) : 25;
 
-  const data = await SearchService.searchLostFound({
-    query: search,
-    category,
-    status,
-    cursor,
-    limit,
-  });
+  const query: any = {};
+  if (type && type !== 'All') query.type = type;
+  if (status && status !== 'All') query.status = status;
 
-  let results = data.results;
-  if (type) {
-    results = results.filter((i) => i.type === type);
-  }
+  const items = await LostFoundItem.find(query)
+    .sort({ createdAt: -1 })
+    .populate('reporter', 'displayName email role');
 
-  return NextResponse.json({ items: results, nextCursor: data.nextCursor });
+  return NextResponse.json({ items });
 }
 
 export async function POST(req: NextRequest) {
@@ -41,26 +30,28 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { type, title, description, category, location, itemDate, imageUrl, attachments } = body;
+    const { title, description, category, type, location, contactInfo, imageUrl, attachments } = body;
 
-    if (!type || !title || !description || !category || !location || !itemDate) {
+    if (!title || !description || !category || !type || !location || !contactInfo) {
       return NextResponse.json({ error: 'Missing required item fields' }, { status: 400 });
     }
 
-    const item = await LostFoundService.createItem({
-      type,
-      title,
-      description,
+    await connectToDatabase();
+    const item = await LostFoundItem.create({
+      title: title.trim(),
+      description: description.trim(),
       category,
-      location,
-      itemDate: new Date(itemDate),
-      imageUrl,
-      attachments,
-      reportedBy: payload.sub,
+      type,
+      location: location.trim(),
+      contactInfo: contactInfo.trim(),
+      reporter: payload.sub,
+      imageUrl: attachments && attachments.length > 0 ? attachments[0].url : imageUrl,
+      attachments: attachments || [],
+      status: 'Open',
     });
 
-    return NextResponse.json({ message: 'Item posted successfully', item }, { status: 201 });
+    return NextResponse.json({ message: 'Item created successfully', item }, { status: 201 });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Failed to post item' }, { status: 400 });
+    return NextResponse.json({ error: err.message || 'Failed to create item' }, { status: 400 });
   }
 }

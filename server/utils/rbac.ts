@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken, JWTPayload } from './jwt';
 import { verifySessionVersion } from './sessionCache';
 import { UserRole } from '../models/User';
-import { AuditLog } from '../models/AuditLog';
+import { ActivityLog } from '../models/ActivityLog';
 import { connectToDatabase } from '../db/connection';
 
 const ROLE_RANK: Record<UserRole, number> = {
@@ -28,7 +28,7 @@ export async function authenticateRequest(req: NextRequest): Promise<JWTPayload 
 }
 
 export function hasRolePermission(userRole: UserRole, requiredRole: UserRole): boolean {
-  return ROLE_RANK[userRole] >= ROLE_RANK[requiredRole];
+  return (ROLE_RANK[userRole] || 0) >= (ROLE_RANK[requiredRole] || 0);
 }
 
 export async function logRBACViolation(
@@ -38,7 +38,7 @@ export async function logRBACViolation(
 ) {
   try {
     await connectToDatabase();
-    await AuditLog.create({
+    await ActivityLog.create({
       actingUserId: userId || undefined,
       actionType: 'RBAC_VIOLATION_ATTEMPT',
       entityType: 'API_ENDPOINT',
@@ -82,12 +82,4 @@ export function requireRole<T = any>(
 
     return handler(req, payload, context);
   };
-}
-
-export function requireOwnershipOrAdmin(
-  resourceOwnerId: string,
-  requesterPayload: JWTPayload
-): boolean {
-  if (requesterPayload.role === 'Administrator') return true;
-  return requesterPayload.sub === resourceOwnerId;
 }

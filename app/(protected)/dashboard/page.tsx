@@ -1,156 +1,218 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
-import { Wrench, Search, ChevronRight, CheckCircle2, Inbox } from 'lucide-react';
-import { IssueCard } from '@/components/ui/IssueCard';
-import { LastUpdatedIndicator } from '@/components/ui/LastUpdatedIndicator';
+import { StatCard } from '@/components/ui/StatCard';
+import { RequestCard } from '@/components/ui/RequestCard';
+import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Plus, ClipboardList, PackageSearch, Megaphone, ArrowRight, Wrench, ShieldCheck } from 'lucide-react';
 
 export default function StudentDashboardPage() {
-  const [issues, setIssues] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(null);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [lostFound, setLostFound] = useState<any[]>([]);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userDisplayName, setUserDisplayName] = useState('Student');
 
   useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-
-    async function loadDashboardData() {
+    async function loadStudentData() {
       try {
         const meRes = await fetch('/api/auth/me');
         if (meRes.ok) {
           const meData = await meRes.json();
-          if (meData.user) {
-            if (meData.user.displayName) {
-              setUserDisplayName(meData.user.displayName);
-            }
-            const userId = meData.user.id;
-            const res = await fetch(`/api/issues?reporterId=${userId}`);
-            if (res.ok) {
-              const data = await res.json();
-              const fetchedIssues = Array.isArray(data.issues) ? data.issues : Array.isArray(data) ? data : [];
-              setIssues(fetchedIssues);
-            }
-          }
+          setUser(meData.user);
+        }
+
+        const issuesRes = await fetch('/api/issues', { cache: 'no-store' });
+        if (issuesRes.ok) {
+          const issuesData = await issuesRes.json();
+          setRequests(issuesData.issues || []);
+        }
+
+        const lfRes = await fetch('/api/lost-found', { cache: 'no-store' });
+        if (lfRes.ok) {
+          const lfData = await lfRes.json();
+          setLostFound((lfData.items || []).slice(0, 3));
+        }
+
+        const annRes = await fetch('/api/announcements', { cache: 'no-store' });
+        if (annRes.ok) {
+          const annData = await annRes.json();
+          setAnnouncements((annData.announcements || []).slice(0, 2));
         }
       } catch (err) {
-        console.error('Failed to load dashboard data:', err);
+        console.error('Failed to load student dashboard:', err);
       } finally {
         setLoading(false);
       }
     }
 
-    loadDashboardData();
-    intervalId = setInterval(loadDashboardData, 10000);
-
-    return () => clearInterval(intervalId);
+    loadStudentData();
   }, []);
 
-  const recentIssues = issues.slice(0, 3);
-  const resolvedIssues = issues.filter((i) => i.status === 'Resolved' || i.status === 'Verified');
+  const displayName = user?.displayName || 'Student';
+  const activeCount = requests.filter((r) =>
+    ['Reported', 'Under_Review', 'Assigned', 'In_Progress'].includes(r.status)
+  ).length;
+  const completedCount = requests.filter((r) => ['Resolved', 'Verified'].includes(r.status)).length;
 
   return (
     <AppShell initialRole="student">
-      <div className="space-y-8">
-        {/* Top Welcome Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Good Morning, {userDisplayName}
+      <div className="space-y-8 select-none">
+        {/* Welcome Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0b1727] text-white p-6 md:p-8 rounded-3xl shadow-md border border-slate-800 relative overflow-hidden">
+          <div className="relative z-10 space-y-2">
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30">
+              Campus Operations v2
+            </span>
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+              Good morning, {displayName} 👋
             </h1>
-            <p className="text-sm text-slate-500 font-medium">Welcome back to CampusConnect</p>
+            <p className="text-xs md:text-sm text-slate-300 font-medium max-w-xl">
+              Report issues around campus, check lost & found items, and track your request resolutions live.
+            </p>
           </div>
-          <LastUpdatedIndicator />
+          <div className="relative z-10 shrink-0">
+            <Link href="/issues/new">
+              <Button size="lg" icon={<Plus className="w-5 h-5" />}>
+                Report New Issue
+              </Button>
+            </Link>
+          </div>
         </div>
 
-        {/* 2-Column Quick Action Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Action 1: Report Issue */}
-          <Link
-            href="/issues/new"
-            className="group bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm hover:shadow-md hover:border-blue-300 transition-all flex items-center justify-between"
-          >
-            <div className="flex items-center gap-5">
-              <div className="w-14 h-14 rounded-2xl bg-[#2563eb] text-white flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
-                <Wrench className="w-7 h-7" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900 group-hover:text-[#2563eb] transition-colors">
-                  Report Issue
-                </h3>
-                <p className="text-xs text-slate-500 font-medium">Fix campus problems</p>
-              </div>
-            </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-[#2563eb] group-hover:translate-x-1 transition-all" />
-          </Link>
-
-          {/* Action 2: Lost & Found */}
-          <Link
-            href="/lost-found"
-            className="group bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm hover:shadow-md hover:border-cyan-300 transition-all flex items-center justify-between"
-          >
-            <div className="flex items-center gap-5">
-              <div className="w-14 h-14 rounded-2xl bg-[#06b6d4] text-white flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0">
-                <Search className="w-7 h-7" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900 group-hover:text-[#06b6d4] transition-colors">
-                  Lost & Found
-                </h3>
-                <p className="text-xs text-slate-500 font-medium">Find or report lost items</p>
-              </div>
-            </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-[#06b6d4] group-hover:translate-x-1 transition-all" />
-          </Link>
+        {/* Quick Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatCard
+            label="Total Submitted"
+            value={requests.length}
+            icon={<ClipboardList className="w-6 h-6 text-[#2563eb]" />}
+            badgeColor="blue"
+          />
+          <StatCard
+            label="Active Requests"
+            value={activeCount}
+            icon={<Wrench className="w-6 h-6 text-amber-600" />}
+            badgeColor="amber"
+          />
+          <StatCard
+            label="Completed Resolutions"
+            value={completedCount}
+            icon={<ShieldCheck className="w-6 h-6 text-emerald-600" />}
+            badgeColor="green"
+          />
         </div>
 
-        {/* Section 1: My Issues */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-900">My Issues</h2>
-            {issues.length > 0 && (
-              <Link href="/issues" className="text-xs font-bold text-[#2563eb] hover:underline">
-                View all ({issues.length})
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column (Recent Requests - 2 cols) */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-extrabold text-slate-900">Recent Requests</h2>
+              <Link
+                href="/issues"
+                className="text-xs font-bold text-[#2563eb] hover:underline flex items-center gap-1"
+              >
+                View All <ArrowRight className="w-3.5 h-3.5" />
               </Link>
+            </div>
+
+            {loading ? (
+              <div className="text-center py-8 text-xs text-slate-400">Loading requests...</div>
+            ) : requests.length === 0 ? (
+              <EmptyState
+                title="No active requests"
+                description="Everything looks good! Report an issue if something needs attention."
+                icon={<Wrench className="w-8 h-8 text-[#2563eb]" />}
+                action={
+                  <Link href="/issues/new">
+                    <Button icon={<Plus className="w-4 h-4" />}>Report Issue</Button>
+                  </Link>
+                }
+              />
+            ) : (
+              <div className="space-y-3">
+                {requests.slice(0, 4).map((req) => (
+                  <RequestCard key={req._id || req.id} request={req} hrefPrefix="/issues" />
+                ))}
+              </div>
             )}
           </div>
 
-          {loading ? (
-            <div className="p-8 text-center text-xs text-slate-400">Loading issues...</div>
-          ) : recentIssues.length > 0 ? (
-            <div className="space-y-3">
-              {recentIssues.map((issue) => (
-                <IssueCard key={issue._id || issue.id} issue={issue} />
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              title="No campus issues reported yet"
-              description="Report your first campus issue to get started."
-              icon={<Wrench className="w-8 h-8 text-[#2563eb]" />}
-            />
-          )}
-        </div>
+          {/* Right Column (Campus Updates & Lost & Found - 1 col) */}
+          <div className="space-y-6">
+            {/* Campus Updates Box */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <Megaphone className="w-4 h-4 text-[#2563eb]" />
+                  <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                    Campus Updates
+                  </h3>
+                </div>
+                <Link href="/announcements" className="text-xs font-bold text-[#2563eb] hover:underline">
+                  All
+                </Link>
+              </div>
 
-        {/* Section 2: Recent Updates */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-bold text-slate-900">Recent Updates</h2>
-          {resolvedIssues.length > 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
-                <CheckCircle2 className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-900">Your issue "{resolvedIssues[0].title}" has been resolved</p>
-                <p className="text-xs text-slate-400 font-medium">Recently updated</p>
-              </div>
+              {announcements.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-4">No campus announcements.</p>
+              ) : (
+                <div className="space-y-3">
+                  {announcements.map((ann) => (
+                    <div key={ann._id || ann.id} className="p-3 bg-slate-50 rounded-xl space-y-1">
+                      <h4 className="text-xs font-bold text-slate-900 leading-tight">{ann.title}</h4>
+                      <p className="text-[11px] text-slate-500 line-clamp-2">{ann.content}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm text-center text-xs text-slate-500 font-medium">
-              No recent status updates yet.
+
+            {/* Lost & Found Summary */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <PackageSearch className="w-4 h-4 text-[#2563eb]" />
+                  <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                    Lost & Found
+                  </h3>
+                </div>
+                <Link href="/lost-found" className="text-xs font-bold text-[#2563eb] hover:underline">
+                  Browse
+                </Link>
+              </div>
+
+              {lostFound.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-4">No items listed yet.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {lostFound.map((item) => (
+                    <div
+                      key={item._id || item.id}
+                      className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl"
+                    >
+                      <div>
+                        <p className="text-xs font-bold text-slate-900">{item.title}</p>
+                        <p className="text-[10px] text-slate-500">{item.location}</p>
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          item.type === 'Found'
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : 'bg-amber-50 text-amber-700'
+                        }`}
+                      >
+                        {item.type}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </AppShell>

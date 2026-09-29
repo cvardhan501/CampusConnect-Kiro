@@ -1,31 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateRequest, hasRolePermission, logRBACViolation } from '@/server/utils/rbac';
+import { requireRole } from '@/server/utils/rbac';
 import { IssueService } from '@/server/services/issue.service';
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const payload = await authenticateRequest(req);
-  if (!payload) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+export const dynamic = 'force-dynamic';
 
-  // Administrator-only — staff cannot assign issues (design spec + security steering)
-  if (!hasRolePermission(payload.role, 'Administrator')) {
-    await logRBACViolation(payload.sub, 'PATCH assign', `Issue ${params.id}`);
-    return NextResponse.json({ error: 'Forbidden: Only Administrators can assign issues' }, { status: 403 });
-  }
-
+export const PATCH = requireRole('Administrator', async (req: NextRequest, payload, { params }: { params: { id: string } }) => {
   try {
     const body = await req.json();
-    const { staffUserId } = body;
+    const { staffId, note } = body;
 
-    if (!staffUserId) {
-      return NextResponse.json({ error: 'staffUserId is required' }, { status: 400 });
+    if (!staffId) {
+      return NextResponse.json({ error: 'staffId is required' }, { status: 400 });
     }
 
-    const issue = await IssueService.assignIssue(params.id, staffUserId, payload.sub, payload.role);
-    return NextResponse.json({ message: 'Issue assigned successfully', issue });
+    const issue = await IssueService.assignStaff(
+      params.id,
+      staffId,
+      { id: payload.sub, displayName: 'Administrator', role: payload.role },
+      note
+    );
+
+    return NextResponse.json({ message: 'Staff assigned successfully', issue });
   } catch (err: any) {
-    const code: number = err.statusCode ?? 400;
-    return NextResponse.json({ error: err.message || 'Assignment failed' }, { status: code });
+    return NextResponse.json({ error: err.message || 'Failed to assign staff' }, { status: 400 });
   }
-}
+});

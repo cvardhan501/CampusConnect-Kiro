@@ -1,115 +1,121 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { DataTable, Column } from '@/components/ui/DataTable';
-import { SearchInput } from '@/components/ui/SearchInput';
-import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { Users } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Plus, Users } from 'lucide-react';
 
-export default function AdminUsersPage() {
-  const [users, setUsers] = useState<any[]>([]);
+export default function AdminStaffManagementPage() {
+  const [staffList, setStaffList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [addModalOpen, setAddModalOpen] = useState(false);
 
-  const fetchUsers = () => {
-    fetch('/api/admin/users')
-      .then((res) => (res.ok ? res.json() : { users: [] }))
-      .then((data) => {
-        const mapped = (data.users || []).map((u: any) => ({
-          id: u._id || u.id,
-          name: u.displayName || u.name || 'User',
-          email: u.email,
-          role: (u.role || 'Student').toLowerCase(),
-          department: u.department || 'N/A',
-          studentId: u.campusId || u.studentId || 'N/A',
-        }));
-        setUsers(mapped);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  };
+  // Form State
+  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState('');
+  const [department, setDepartment] = useState('Facilities');
+  const [password, setPassword] = useState('Staff@123456');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchUsers();
+    async function loadStaff() {
+      try {
+        const res = await fetch('/api/admin/users?role=Staff', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          setStaffList(data.users || []);
+        }
+      } catch (err) {
+        console.error('Failed to load staff list:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadStaff();
   }, []);
 
-  const handleRoleChange = async (userId: string, newRole: 'student' | 'staff' | 'admin') => {
+  const handleAddStaffSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+
     try {
-      const roleMap: Record<string, string> = {
-        student: 'Student',
-        staff: 'Staff',
-        admin: 'Administrator',
-      };
-      await fetch('/api/admin/users', {
-        method: 'PATCH',
+      const campusId = `STF-${Date.now().toString().slice(-5)}`;
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, role: roleMap[newRole] }),
+        body: JSON.stringify({
+          displayName,
+          email,
+          password,
+          campusId,
+          role: 'Staff',
+          department,
+        }),
       });
-      fetchUsers();
-    } catch {
-      fetchUsers();
+
+      if (res.ok) {
+        setAddModalOpen(false);
+        setDisplayName('');
+        setEmail('');
+        // Reload list
+        const reloadRes = await fetch('/api/admin/users?role=Staff', { cache: 'no-store' });
+        if (reloadRes.ok) {
+          const data = await reloadRes.json();
+          setStaffList(data.users || []);
+        }
+      }
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const filteredUsers = users.filter(
-    (u) =>
-      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.role.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const columns: Column<any>[] = [
     {
-      header: 'User',
-      cell: (user) => (
+      header: 'Staff Member',
+      cell: (u) => (
         <div className="flex items-center gap-3">
-          <Avatar name={user.name} size="md" />
+          <Avatar name={u.displayName} size="sm" />
           <div>
-            <span className="block font-bold text-slate-900 text-xs">{user.name}</span>
-            <span className="block text-[11px] text-slate-500">{user.email}</span>
+            <p className="font-bold text-slate-900">{u.displayName}</p>
+            <p className="text-[10px] text-slate-400 font-medium">{u.email}</p>
           </div>
         </div>
       ),
     },
     {
-      header: 'Department / ID',
-      cell: (user) => (
-        <div>
-          <span className="block font-medium text-xs text-slate-800">{user.department || 'N/A'}</span>
-          <span className="block text-[10px] text-slate-400">{user.studentId || 'Staff'}</span>
-        </div>
-      ),
+      header: 'Department',
+      accessorKey: 'department',
+      cell: (u) => <span className="font-semibold text-slate-700">{u.department || 'Facilities'}</span>,
     },
     {
-      header: 'Role',
-      cell: (user) => (
-        <select
-          value={user.role}
-          onChange={(e) => handleRoleChange(user.id, e.target.value as any)}
-          className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500 capitalize"
-        >
-          <option value="student">Student</option>
-          <option value="staff">Staff</option>
-          <option value="admin">Administrator</option>
-        </select>
-      ),
-    },
-    {
-      header: 'Status',
-      cell: () => (
-        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
-          Active
+      header: 'Active Tasks',
+      cell: (u) => (
+        <span className="font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#2563eb] text-xs">
+          {u.activeTasks || 0}
         </span>
       ),
     },
     {
-      header: 'Action',
+      header: 'Status',
+      cell: (u) => (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          {u.status || 'Active'}
+        </span>
+      ),
+    },
+    {
+      header: 'Actions',
       cell: () => (
-        <Button variant="ghost" size="sm" className="text-xs text-red-600 hover:bg-red-50">
-          Deactivate
+        <Button size="sm" variant="outline">
+          View
         </Button>
       ),
     },
@@ -117,33 +123,90 @@ export default function AdminUsersPage() {
 
   return (
     <AppShell initialRole="admin">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">User & Role Management</h1>
-          <p className="text-sm text-slate-500 font-medium">Manage user accounts, assign staff permissions, and update roles.</p>
+      <div className="space-y-6 select-none">
+        {/* Header (Matching Screen #10) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Staff Management</h1>
+            <p className="text-sm text-slate-500 font-medium">Manage campus staff and their workload.</p>
+          </div>
+          <Button icon={<Plus className="w-4 h-4" />} onClick={() => setAddModalOpen(true)}>
+            + Add Staff
+          </Button>
         </div>
 
-        <div className="space-y-4">
-          <SearchInput
-            placeholder="Search users by name, email, or role..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-
+        {/* Content Container (Matching Screen #10) */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs space-y-6">
           {loading ? (
-            <div className="text-center py-12 text-sm text-slate-500">Loading user list...</div>
-          ) : filteredUsers.length === 0 ? (
-            <EmptyState
-              icon={<Users className="w-8 h-8" />}
-              title="No Users Found"
-              description="No registered user accounts matched your search criteria."
-            />
+            <div className="text-center text-xs text-slate-400 py-8 font-semibold">Loading staff records...</div>
           ) : (
-            <DataTable columns={columns} data={filteredUsers} />
+            <DataTable
+              columns={columns}
+              data={staffList}
+              keyExtractor={(u) => u.id || u._id}
+              emptyMessage="No staff members registered."
+            />
           )}
         </div>
+
+        {/* Add Staff Modal */}
+        <Modal
+          isOpen={addModalOpen}
+          onClose={() => setAddModalOpen(false)}
+          title="Add New Staff Member"
+          subtitle="Provision a staff account for department request handling."
+        >
+          <form onSubmit={handleAddStaffSubmit} className="space-y-4">
+            <Input
+              label="Staff Full Name"
+              placeholder="e.g. Sarah Johnson"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              required
+            />
+
+            <Input
+              label="Staff Email"
+              type="email"
+              placeholder="e.g. sarah@campus.edu"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+
+            <Select
+              label="Department"
+              options={[
+                { label: 'Facilities', value: 'Facilities' },
+                { label: 'IT Support', value: 'IT Support' },
+                { label: 'Maintenance', value: 'Maintenance' },
+                { label: 'Electrical', value: 'Electrical' },
+                { label: 'Plumbing', value: 'Plumbing' },
+              ]}
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              required
+            />
+
+            <Input
+              label="Temporary Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={() => setAddModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={submitting}>
+                Provision Staff
+              </Button>
+            </div>
+          </form>
+        </Modal>
       </div>
     </AppShell>
   );
 }
-

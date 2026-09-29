@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateRequest, logRBACViolation } from '@/server/utils/rbac';
+import { authenticateRequest } from '@/server/utils/rbac';
 import { IssueService } from '@/server/services/issue.service';
-import { SearchService } from '@/server/services/search.service';
-import { checkUserRateLimit } from '@/server/utils/rateLimiter';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   const payload = await authenticateRequest(req);
@@ -14,47 +14,35 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get('search') || undefined;
   const category = searchParams.get('category') || undefined;
   const status = searchParams.get('status') || undefined;
-  const location = searchParams.get('location') || undefined;
-  let reporterId = searchParams.get('reporterId') || undefined;
-  let assignedTo = searchParams.get('assignedTo') || undefined;
-  const cursor = searchParams.get('cursor') || undefined;
-  const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!, 10) : 25;
+  const priority = searchParams.get('priority') || undefined;
 
-  // Strict Data Isolation Rule:
-  // Student accounts can ONLY query issues they reported
-  // Staff accounts can ONLY query issues assigned to them
-  if (payload.role === 'Student') {
+  let reporterId: string | undefined = undefined;
+  let assignedTo: string | undefined = undefined;
+
+  const rawRole = (payload.role || '').toString().toLowerCase();
+  if (rawRole === 'student') {
     reporterId = payload.sub;
-  } else if (payload.role === 'Staff') {
+  } else if (rawRole === 'staff') {
     assignedTo = payload.sub;
   }
 
-  const data = await SearchService.searchIssues({
-    query: search,
-    category,
-    status,
-    location,
+  const issues = await IssueService.listIssues({
     reporterId,
     assignedTo,
-    cursor,
-    limit,
+    role: payload.role,
+    search,
+    category,
+    status,
+    priority,
   });
 
-  return NextResponse.json({ issues: data.results, nextCursor: data.nextCursor });
+  return NextResponse.json({ issues });
 }
 
 export async function POST(req: NextRequest) {
   const payload = await authenticateRequest(req);
   if (!payload) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const { allowed, retryAfter } = checkUserRateLimit(payload.sub);
-  if (!allowed) {
-    return NextResponse.json(
-      { error: `Rate limit exceeded. Try again in ${retryAfter || 60} seconds.` },
-      { status: 429, headers: { 'Retry-After': (retryAfter || 60).toString() } }
-    );
   }
 
   try {

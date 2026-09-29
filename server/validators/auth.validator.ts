@@ -22,7 +22,7 @@ export const RegisterSchema = z.object({
     .trim(),
   role: z.enum(['Student', 'Staff', 'Administrator'], {
     required_error: 'Role selection is required',
-  }),
+  }).default('Student'),
   department: z.string().optional(),
   phoneNumber: z.string().optional(),
 });
@@ -37,26 +37,5 @@ export const LoginSchema = z.object({
     .min(1, 'Password cannot be empty'),
 });
 
-export const ForgotPasswordSchema = z.object({
-  email: z
-    .string({ required_error: 'Email is required' })
-    .email('Invalid email address format')
-    .toLowerCase()
-    .trim(),
-});
-
-export const ResetPasswordSchema = z.object({
-  token: z
-    .string({ required_error: 'Reset token is required' })
-    .min(1, 'Token cannot be empty')
-    .trim(),
-  newPassword: z
-    .string({ required_error: 'New password is required' })
-    .min(10, 'Password must be at least 10 characters long')
-    .max(128, 'Password cannot exceed 128 characters'),
-});
-
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 export type LoginInput = z.infer<typeof LoginSchema>;
-export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>;
-export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;

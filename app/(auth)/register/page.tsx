@@ -3,26 +3,19 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { School, User, Mail, Lock, Building2, AlertCircle } from 'lucide-react';
+import { School, User, Mail, Lock, IdCard, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Tabs } from '@/components/ui/Tabs';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [role, setRole] = useState<'student' | 'staff' | 'admin'>('student');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [campusId, setCampusId] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const roleTabs = [
-    { id: 'student', label: 'Student' },
-    { id: 'staff', label: 'Staff' },
-    { id: 'admin', label: 'Admin' },
-  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,13 +34,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const roleMap: Record<string, 'Student' | 'Staff' | 'Administrator'> = {
-        student: 'Student',
-        staff: 'Staff',
-        admin: 'Administrator',
-      };
-
-      const campusId = `STU_${Date.now().toString().slice(-6)}`;
+      const generatedCampusId = campusId.trim() || `STU-${Date.now().toString().slice(-6)}`;
 
       const res = await fetch('/api/auth/register', {
         method: 'POST',
@@ -56,24 +43,17 @@ export default function RegisterPage() {
           email,
           password,
           displayName: fullName,
-          campusId,
-          role: roleMap[role] || 'Student',
+          campusId: generatedCampusId,
+          role: 'Student', // Public registration creates Student account by default
         }),
       });
 
       const data = await res.json();
-
       if (!res.ok) {
         throw new Error(data.error || data.details?.join(', ') || 'Failed to register account');
       }
 
-      if (role === 'admin') {
-        router.push('/admin');
-      } else if (role === 'staff') {
-        router.push('/staff');
-      } else {
-        router.push('/dashboard');
-      }
+      router.push('/dashboard');
       router.refresh();
     } catch (err: any) {
       setError(err.message || 'Registration failed');
@@ -83,39 +63,37 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex w-full bg-[#f8fafc] text-slate-900">
-      {/* Left Panel - Illustration & Branding (Desktop) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-[#f0f6ff] border-r border-blue-50 flex-col justify-between p-12 relative overflow-hidden select-none">
+    <div className="min-h-screen flex w-full bg-[#f8fafc] text-slate-900 select-none">
+      {/* Left Panel */}
+      <div className="hidden lg:flex lg:w-1/2 bg-[#0b1727] text-white flex-col justify-between p-12 relative overflow-hidden">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#2563eb] text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+          <div className="w-10 h-10 rounded-xl bg-[#2563eb] text-white flex items-center justify-center shadow-lg shadow-blue-500/30">
             <School className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="font-extrabold text-[#0f172a] text-xl tracking-tight">CampusConnect</h1>
-            <p className="text-xs text-slate-500 font-medium">Connect. Report. Recover. Resolve.</p>
+            <h1 className="font-extrabold text-white text-xl tracking-tight">CampusConnect</h1>
+            <p className="text-xs text-slate-400 font-medium">Student Registration</p>
           </div>
         </div>
 
-        <div className="my-auto py-8">
-          <div className="bg-white rounded-3xl p-8 border border-blue-100/80 shadow-lg shadow-blue-500/5 max-w-md mx-auto text-center space-y-6">
-            <div className="w-32 h-32 rounded-full bg-blue-50 text-[#2563eb] mx-auto flex items-center justify-center border-4 border-blue-100">
-              <Building2 className="w-16 h-16 text-[#2563eb]" />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-xl font-bold text-slate-900">Campus Governance Platform</h2>
-              <p className="text-xs text-slate-500 leading-relaxed max-w-xs mx-auto">
-                Join thousands of students and faculty members collaborating for a better campus environment.
-              </p>
-            </div>
+        <div className="my-auto py-12 max-w-md mx-auto space-y-6 text-center">
+          <div className="w-24 h-24 rounded-3xl bg-blue-600/20 border border-blue-500/30 text-[#2563eb] mx-auto flex items-center justify-center">
+            <User className="w-12 h-12 text-[#2563eb]" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-extrabold text-white">Join CampusConnect</h2>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Report campus facilities issues, search lost & found items, and track request resolutions live.
+            </p>
           </div>
         </div>
 
-        <div className="text-center">
-          <p className="text-xs text-slate-500 font-medium tracking-wide">A smarter campus, together.</p>
+        <div className="text-center text-xs text-slate-500 font-medium">
+          Campus Operational Infrastructure v2
         </div>
       </div>
 
-      {/* Right Panel - Register Form Container */}
+      {/* Right Panel */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 md:p-12">
         <div className="max-w-md w-full space-y-8">
           <div className="flex items-center gap-3 lg:hidden justify-center mb-4">
@@ -126,74 +104,78 @@ export default function RegisterPage() {
           </div>
 
           <div className="text-center space-y-1">
-            <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Create Your Account</h2>
-            <p className="text-sm text-slate-500 font-medium">Join CampusConnect today</p>
+            <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Create Student Account</h2>
+            <p className="text-sm text-slate-500 font-medium">Sign up to get started</p>
           </div>
 
           {error && (
-            <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-3">
+            <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-3">
               <AlertCircle className="w-5 h-5 shrink-0 text-red-600" />
               <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <Tabs tabs={roleTabs} activeTab={role} onChange={(r: any) => setRole(r)} variant="segmented" />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              label="Full Name"
+              type="text"
+              placeholder="e.g. Alex Johnson"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              icon={<User className="w-4 h-4" />}
+              required
+            />
 
-            <div className="space-y-3.5">
-              <Input
-                label="Full Name"
-                type="text"
-                placeholder="e.g. Alex Johnson"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                icon={<User className="w-4 h-4" />}
-                required
-              />
+            <Input
+              label="Email Address"
+              type="email"
+              placeholder="e.g. alex@campus.edu"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              icon={<Mail className="w-4 h-4" />}
+              required
+            />
 
-              <Input
-                label="Email or Student ID"
-                type="text"
-                placeholder="e.g. student@campus.edu"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                icon={<Mail className="w-4 h-4" />}
-                required
-              />
+            <Input
+              label="Student / Campus ID"
+              type="text"
+              placeholder="e.g. STU-2026-901"
+              value={campusId}
+              onChange={(e) => setCampusId(e.target.value)}
+              icon={<IdCard className="w-4 h-4" />}
+              required
+            />
 
-              <Input
-                label="Password"
-                type="password"
-                placeholder="•••••••• (min 10 characters)"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                icon={<Lock className="w-4 h-4" />}
-                required
-              />
+            <Input
+              label="Password"
+              type="password"
+              placeholder="At least 10 characters"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              icon={<Lock className="w-4 h-4" />}
+              required
+            />
 
-              <Input
-                label="Confirm Password"
-                type="password"
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                icon={<Lock className="w-4 h-4" />}
-                required
-              />
-            </div>
+            <Input
+              label="Confirm Password"
+              type="password"
+              placeholder="Repeat password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              icon={<Lock className="w-4 h-4" />}
+              required
+            />
 
-            <Button type="submit" fullWidth size="lg" disabled={loading}>
-              {loading ? 'Creating account...' : 'Register'}
+            <Button type="submit" loading={loading} className="w-full mt-2">
+              Create Account
             </Button>
           </form>
 
-          <div className="text-center pt-2">
-            <p className="text-xs text-slate-500 font-medium">
-              Already have an account?{' '}
-              <Link href="/login" className="text-[#2563eb] font-bold hover:underline">
-                Login
-              </Link>
-            </p>
+          <div className="text-center text-xs text-slate-500 font-medium pt-4 border-t border-slate-200/80">
+            Already have an account?{' '}
+            <Link href="/login" className="font-bold text-[#2563eb] hover:underline">
+              Sign In
+            </Link>
           </div>
         </div>
       </div>

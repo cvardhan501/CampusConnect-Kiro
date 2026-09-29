@@ -1,10 +1,12 @@
-import React from 'react';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
-import { Metadata } from 'next';
+
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'CampusConnect — Campus Issue Reporting & Lost & Found',
-  description: 'Central hub for campus maintenance requests and Lost & Found item management.',
+  title: 'CampusConnect v2',
+  description: 'University Operations Platform',
 };
 
 export default function RootLayout({
@@ -14,7 +16,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full">
-      <body className="h-full antialiased bg-[#f8fafc] text-slate-900">{children}</body>
+      <body className={`${inter.className} h-full bg-slate-50 text-slate-900 antialiased`}>
+        {children}
+      </body>
     </html>
   );
 }

@@ -5,107 +5,134 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
-  FilePlus2,
-  PackageSearch,
   ClipboardList,
-  Bell,
+  PlusCircle,
+  PackageSearch,
+  Megaphone,
   User,
-  CheckSquare,
-  ShieldCheck,
   Users,
+  Building2,
+  Activity,
   BarChart3,
-  Sparkles,
-  History,
-  FileText,
+  Bell,
   School,
+  LogOut,
 } from 'lucide-react';
+import { Avatar } from '@/components/ui/Avatar';
 
 export interface SidebarProps {
-  currentRole: 'student' | 'staff' | 'admin';
+  userRole?: 'student' | 'staff' | 'admin';
+  user?: any;
+  onLogout?: () => void;
 }
 
-interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ComponentType<any>;
-  hasBadge?: boolean;
-}
-
-export const Sidebar: React.FC<SidebarProps> = ({ currentRole }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  userRole = 'student',
+  user,
+  onLogout,
+}) => {
   const pathname = usePathname();
 
-  const studentNavItems: NavItem[] = [
-    { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { label: 'Report Issue', href: '/issues/new', icon: FilePlus2 },
+  // Navigation Links tailored to Role according to Reference Image & Specs
+  const studentNav = [
+    { label: 'Home', href: '/dashboard', icon: LayoutDashboard },
+    { label: 'My Requests', href: '/issues', icon: ClipboardList },
+    { label: 'Report Issue', href: '/issues/new', icon: PlusCircle },
     { label: 'Lost & Found', href: '/lost-found', icon: PackageSearch },
-    { label: 'My Issues', href: '/issues', icon: ClipboardList },
-    { label: 'Notifications', href: '/notifications', icon: Bell, hasBadge: true },
+    { label: 'Campus Updates', href: '/announcements', icon: Megaphone },
     { label: 'Profile', href: '/profile', icon: User },
   ];
 
-  const staffNavItems: NavItem[] = [
-    { label: 'Dashboard', href: '/staff', icon: LayoutDashboard },
-    { label: 'Assigned Issues', href: '/staff/issues', icon: CheckSquare },
-    { label: 'Lost & Found', href: '/staff/lost-found', icon: PackageSearch },
-    { label: 'Claims', href: '/staff/claims', icon: ShieldCheck },
-    { label: 'Notifications', href: '/notifications', icon: Bell, hasBadge: true },
+  const staffNav = [
+    { label: 'Overview', href: '/staff', icon: LayoutDashboard },
+    { label: 'My Work', href: '/staff/issues', icon: ClipboardList },
+    { label: 'Alerts', href: '/notifications', icon: Bell },
     { label: 'Profile', href: '/profile', icon: User },
   ];
 
-  const adminNavItems: NavItem[] = [
+  const adminNav = [
     { label: 'Overview', href: '/admin', icon: LayoutDashboard },
-    { label: 'Issues', href: '/admin/issues', icon: ClipboardList },
+    { label: 'Requests', href: '/admin/issues', icon: ClipboardList },
+    { label: 'Staff', href: '/admin/users', icon: Users },
     { label: 'Lost & Found', href: '/admin/lost-found', icon: PackageSearch },
-    { label: 'Users', href: '/admin/users', icon: Users },
-    { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
-    { label: 'AI Insights', href: '/admin/ai-insights', icon: Sparkles },
-    { label: 'Audit Logs', href: '/admin/audit-logs', icon: History },
-    { label: 'Reports', href: '/admin/reports', icon: FileText },
-    { label: 'Profile', href: '/profile', icon: User },
+    { label: 'Departments', href: '/admin/departments', icon: Building2 },
+    { label: 'Activity', href: '/admin/activity', icon: Activity },
+    { label: 'Reports', href: '/admin/reports', icon: BarChart3 },
+    { label: 'Profile', href: '/admin/profile', icon: User },
   ];
 
   const navItems =
-    currentRole === 'admin' ? adminNavItems : currentRole === 'staff' ? staffNavItems : studentNavItems;
+    userRole === 'admin' ? adminNav : userRole === 'staff' ? staffNav : studentNav;
+
+  const displayName = user?.displayName || user?.name || (userRole === 'admin' ? 'Admin' : userRole === 'staff' ? 'Staff Member' : 'Student');
+  const displayRole = userRole === 'admin' ? 'Administrator' : userRole === 'staff' ? `Staff - ${user?.department || 'Facilities'}` : 'Student';
 
   return (
-    <aside className="w-64 bg-white border-r border-slate-200/80 hidden md:flex flex-col h-screen sticky top-0 z-30 select-none">
+    <aside className="w-64 bg-[#0b1727] text-slate-300 flex flex-col justify-between h-screen sticky top-0 shrink-0 border-r border-slate-800 select-none">
       {/* Brand Header */}
-      <div className="p-6 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-[#2563eb] text-white flex items-center justify-center shadow-md shadow-blue-500/20 shrink-0">
-          <School className="w-5 h-5" />
+      <div>
+        <div className="h-16 flex items-center px-6 gap-3 border-b border-slate-800/80">
+          <div className="w-8 h-8 rounded-xl bg-[#2563eb] text-white flex items-center justify-center shadow-md shadow-blue-500/30">
+            <School className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="font-extrabold text-white text-base tracking-tight leading-none">
+              CampusConnect
+            </h1>
+            <span className="text-[10px] text-slate-400 font-medium">v2 Platform</span>
+          </div>
         </div>
-        <div className="min-w-0">
-          <span className="font-extrabold text-[#0f172a] text-base tracking-tight block">CampusConnect</span>
-        </div>
+
+        {/* Navigation Items */}
+        <nav className="p-4 space-y-1.5 overflow-y-auto max-h-[calc(100vh-140px)]">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive =
+              pathname === item.href ||
+              (item.href !== '/dashboard' &&
+                item.href !== '/staff' &&
+                item.href !== '/admin' &&
+                pathname.startsWith(item.href));
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 ${
+                  isActive
+                    ? 'bg-[#2563eb] text-white shadow-md shadow-blue-600/30'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                }`}
+              >
+                <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
       </div>
 
-      {/* Nav List */}
-      <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive =
-            pathname === item.href || (item.href !== '/dashboard' && item.href !== '/admin' && item.href !== '/staff' && pathname.startsWith(item.href));
-
-          return (
-            <Link
-              key={item.label}
-              href={item.href}
-              className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all relative ${
-                isActive
-                  ? 'bg-blue-50 text-[#2563eb]'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-medium'
-              }`}
+      {/* User Footer Card in Sidebar (Matching Reference Image) */}
+      <div className="p-4 border-t border-slate-800/80 bg-[#08101c]">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <Avatar name={displayName} size="sm" />
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-white truncate">{displayName}</p>
+              <p className="text-[10px] text-slate-400 truncate">{displayRole}</p>
+            </div>
+          </div>
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              title="Log Out"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors"
             >
-              <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#2563eb]' : 'text-slate-400'}`} />
-              <span className="flex-1">{item.label}</span>
-              {item.hasBadge && (
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              )}
-            </Link>
-          );
-        })}
-      </nav>
-
+              <LogOut className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
     </aside>
   );
 };

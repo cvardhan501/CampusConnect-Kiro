@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Sidebar } from './Sidebar';
-import { Header } from './Header';
-import { MobileBottomNav } from './MobileBottomNav';
+import { Topbar } from './Topbar';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export interface AppShellProps {
   children: React.ReactNode;
@@ -14,10 +14,11 @@ export interface AppShellProps {
 export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const router = useRouter();
   const pathname = usePathname();
+
   const [role, setRole] = useState<'student' | 'staff' | 'admin'>('student');
-  const [authUser, setAuthUser] = useState<any>(null);
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [authorized, setAuthorized] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     async function syncAuthUser() {
@@ -41,7 +42,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             ? 'staff'
             : 'student';
 
-        // Check page authorization
+        // Check route authorization
         if (pathname.startsWith('/admin') && mappedRole !== 'admin') {
           router.push('/dashboard');
           return;
@@ -53,54 +54,59 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         }
 
         setRole(mappedRole);
-        setAuthUser({
-          id: data.user.id,
-          name: data.user.displayName,
-          email: data.user.email,
-          role: mappedRole,
-          studentId: data.user.campusId,
-          department: data.user.department || 'Not provided',
-          phoneNumber: data.user.phoneNumber || 'Not provided',
-        });
-        setAuthorized(true);
+        setUser(data.user);
       } catch {
         router.push('/login');
       } finally {
         setLoading(false);
       }
     }
+
     syncAuthUser();
   }, [pathname, router]);
 
-  if (loading || !authorized || !authUser) {
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // silent
+    } finally {
+      router.push('/login');
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center text-slate-500 text-sm font-medium">
-        Loading CampusConnect...
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+        <LoadingState message="Loading CampusConnect v2..." />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col md:flex-row antialiased">
+    <div className="min-h-screen bg-[#f8fafc] flex">
       {/* Desktop Sidebar */}
-      <Sidebar currentRole={role} />
-
-      {/* Main Column */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
-        {/* Top Header */}
-        <Header user={authUser} />
-
-        {/* Workspace Area */}
-        <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto pb-20 md:pb-8 flex flex-col justify-between">
-          <div>{children}</div>
-          <footer className="mt-8 pt-4 border-t border-slate-200/80 text-center text-xs text-slate-400 font-medium">
-            CampusConnect • Kiro University 2026
-          </footer>
-        </main>
+      <div className="hidden md:block">
+        <Sidebar userRole={role} user={user} onLogout={handleLogout} />
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      <MobileBottomNav currentRole={role} />
+      {/* Mobile Drawer Overlay */}
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/50 z-40 md:hidden"
+          onClick={() => setMobileNavOpen(false)}
+        >
+          <div className="w-64 h-full" onClick={(e) => e.stopPropagation()}>
+            <Sidebar userRole={role} user={user} onLogout={handleLogout} />
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <Topbar user={user} onOpenMobileNav={() => setMobileNavOpen(true)} />
+        <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto space-y-6">{children}</main>
+      </div>
     </div>
   );
 };

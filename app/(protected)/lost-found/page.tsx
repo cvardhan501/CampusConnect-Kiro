@@ -1,154 +1,326 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
 import { Tabs } from '@/components/ui/Tabs';
 import { SearchInput } from '@/components/ui/SearchInput';
-import { LostFoundCard } from '@/components/ui/LostFoundCard';
 import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { StatusBadge } from '@/components/ui/StatusBadge';
-import { Plus, PackageSearch, Package } from 'lucide-react';
+import { ImageUploader } from '@/components/ui/ImageUploader';
+import { ImageLightbox } from '@/components/ui/ImageLightbox';
+import { IAttachment } from '@/server/models/Issue';
+import { PackageSearch, Plus, MapPin, Phone, Image as ImageIcon } from 'lucide-react';
 
-export default function LostFoundDirectoryPage() {
-  const [activeTab, setActiveTab] = useState('Lost Items');
+export default function LostFoundPage() {
+  const [activeTab, setActiveTab] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [items, setItems] = useState<any[]>([]);
-  const [claims, setClaims] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  // Modal Form State
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('Electronics');
+  const [type, setType] = useState<'Lost' | 'Found'>('Lost');
+  const [location, setLocation] = useState('');
+  const [contactInfo, setContactInfo] = useState('');
+  const [description, setDescription] = useState('');
+  const [attachments, setAttachments] = useState<IAttachment[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Lightbox
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxImages, setLightboxImages] = useState<any[]>([]);
+  const [lightboxTitle, setLightboxTitle] = useState('Item Photos');
 
   useEffect(() => {
-    async function loadLostFoundData() {
+    async function loadItems() {
       try {
-        const [itemsRes, claimsRes] = await Promise.all([
-          fetch('/api/lost-found'),
-          fetch('/api/claims'),
-        ]);
-
-        if (itemsRes.ok) {
-          const itemsData = await itemsRes.json();
-          const fetchedItems = Array.isArray(itemsData.items)
-            ? itemsData.items
-            : Array.isArray(itemsData)
-            ? itemsData
-            : [];
-          setItems(fetchedItems);
-        }
-
-        if (claimsRes.ok) {
-          const claimsData = await claimsRes.json();
-          const fetchedClaims = Array.isArray(claimsData.claims)
-            ? claimsData.claims
-            : Array.isArray(claimsData)
-            ? claimsData
-            : [];
-          setClaims(fetchedClaims);
+        const res = await fetch('/api/lost-found', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          setItems(data.items || []);
         }
       } catch (err) {
-        console.error('Failed to load Lost & Found data:', err);
+        console.error('Failed to load Lost & Found:', err);
       } finally {
         setLoading(false);
       }
     }
-    loadLostFoundData();
+
+    loadItems();
   }, []);
 
+  const openLightbox = (images: any[], index: number, titleStr: string) => {
+    setLightboxImages(images);
+    setLightboxIndex(index);
+    setLightboxTitle(titleStr);
+    setLightboxOpen(true);
+  };
+
+  const handleReportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    try {
+      const res = await fetch('/api/lost-found', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          description,
+          category,
+          type,
+          location,
+          contactInfo,
+          attachments,
+        }),
+      });
+
+      if (res.ok) {
+        setIsReportModalOpen(false);
+        setTitle('');
+        setDescription('');
+        setContactInfo('');
+        setLocation('');
+        setAttachments([]);
+        // Refresh list
+        const listRes = await fetch('/api/lost-found', { cache: 'no-store' });
+        if (listRes.ok) {
+          const data = await listRes.json();
+          setItems(data.items || []);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to report item:', err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const tabs = [
-    { id: 'Lost Items', label: 'Lost Items' },
-    { id: 'Found Items', label: 'Found Items' },
-    { id: 'My Claims', label: 'My Claims' },
+    { id: 'All', label: 'All Items', count: items.length },
+    { id: 'Lost', label: 'Lost Items', count: items.filter((i) => i.type === 'Lost').length },
+    { id: 'Found', label: 'Found Items', count: items.filter((i) => i.type === 'Found').length },
   ];
 
   const filteredItems = items.filter((item) => {
-    if (activeTab === 'Lost Items' && item.type !== 'Lost') return false;
-    if (activeTab === 'Found Items' && item.type !== 'Found') return false;
-    const searchLower = searchQuery.toLowerCase();
-    const titleMatch = item.title?.toLowerCase().includes(searchLower) || item.name?.toLowerCase().includes(searchLower);
-    const locationMatch = item.location?.toLowerCase().includes(searchLower);
-    const categoryMatch = item.category?.toLowerCase().includes(searchLower);
-    return !searchQuery || titleMatch || locationMatch || categoryMatch;
+    const matchesTab = activeTab === 'All' || item.type === activeTab;
+    const s = searchQuery.toLowerCase();
+    const matchesSearch =
+      !searchQuery ||
+      item.title?.toLowerCase().includes(s) ||
+      item.location?.toLowerCase().includes(s) ||
+      item.category?.toLowerCase().includes(s);
+
+    return matchesTab && matchesSearch;
   });
 
   return (
     <AppShell initialRole="student">
-      <div className="space-y-6">
-        {/* Header with Action */}
+      <div className="space-y-6 select-none">
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Lost & Found</h1>
-            <p className="text-sm text-slate-500 font-medium">Browse lost belongings or report found items on campus.</p>
+            <p className="text-sm text-slate-500 font-medium">Browse, search, or report lost and found items on campus.</p>
           </div>
-          <div className="flex gap-2">
-            <Link href="/lost-found/report-lost">
-              <Button icon={<Plus className="w-4 h-4" />}>Report Lost</Button>
-            </Link>
-            <Link href="/lost-found/report-found">
-              <Button variant="outline" icon={<Plus className="w-4 h-4" />}>Report Found</Button>
-            </Link>
-          </div>
+          <Button icon={<Plus className="w-4 h-4" />} onClick={() => setIsReportModalOpen(true)}>
+            Report Item
+          </Button>
         </div>
 
-        {/* Main Card Container */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-6">
-          {/* Tabs Bar */}
-          <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} variant="underlined" />
+        {/* Filters & Items Card */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs space-y-6">
+          <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} variant="pills" />
 
-          {/* Content based on Active Tab */}
-          {activeTab === 'My Claims' ? (
-            <div className="space-y-4">
-              {loading ? (
-                <p className="text-center text-xs text-slate-400 py-8">Loading claims...</p>
-              ) : claims.length === 0 ? (
-                <EmptyState
-                  title="No active claims"
-                  description="You have not submitted any ownership claims yet."
-                  icon={<Package className="w-8 h-8 text-cyan-600" />}
-                />
-              ) : (
-                claims.map((claim) => (
-                  <div key={claim._id || claim.id} className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-bold text-slate-900">
-                        {claim.foundItemId?.title || claim.itemName || 'Found Item Claim'}
-                      </h4>
-                      <StatusBadge status={claim.status} />
-                    </div>
-                    <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl font-medium">
-                      <span className="font-bold text-slate-700">Submitted Proof:</span> {claim.ownershipEvidence || claim.proofDescription}
-                    </p>
-                    <p className="text-[11px] text-slate-400">Claim ID: {claim._id || claim.id}</p>
-                  </div>
-                ))
-              )}
-            </div>
+          <SearchInput
+            placeholder="Search lost and found items by title, category, or location..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+
+          {loading ? (
+            <div className="text-center text-xs text-slate-400 py-8">Loading items...</div>
+          ) : filteredItems.length === 0 ? (
+            <EmptyState
+              title="No items found"
+              description="Report a lost or found item to list it on the campus bulletin."
+              icon={<PackageSearch className="w-8 h-8 text-[#2563eb]" />}
+              action={
+                <Button icon={<Plus className="w-4 h-4" />} onClick={() => setIsReportModalOpen(true)}>
+                  Report Item
+                </Button>
+              }
+            />
           ) : (
-            <div className="space-y-6">
-              {/* Search Bar */}
-              <SearchInput
-                placeholder={`Search ${activeTab.toLowerCase()} by name, location, or category...`}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredItems.map((item) => {
+                const itemPhotos = item.attachments && item.attachments.length > 0
+                  ? item.attachments
+                  : item.imageUrl ? [{ url: item.imageUrl }] : [];
 
-              {/* Items List */}
-              <div className="space-y-3">
-                {loading ? (
-                  <p className="text-center text-xs text-slate-400 py-8">Loading Lost & Found items...</p>
-                ) : filteredItems.length === 0 ? (
-                  <EmptyState
-                    title="No active Lost & Found items"
-                    description={`No ${activeTab.toLowerCase()} match your current search.`}
-                    icon={<PackageSearch className="w-8 h-8 text-cyan-600" />}
-                  />
-                ) : (
-                  filteredItems.map((item) => <LostFoundCard key={item._id || item.id} item={item} />)
-                )}
-              </div>
+                return (
+                  <div
+                    key={item._id || item.id}
+                    className="bg-slate-50/70 rounded-2xl p-4 border border-slate-200/80 shadow-2xs space-y-3 flex flex-col justify-between"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                            item.type === 'Found'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}
+                        >
+                          {item.type} Item
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          {new Date(item.createdAt || item.date).toLocaleDateString()}
+                        </span>
+                      </div>
+
+                      {/* Photo Thumbnail Display */}
+                      {itemPhotos.length > 0 && (
+                        <div
+                          onClick={() => openLightbox(itemPhotos, 0, item.title)}
+                          className="relative h-40 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 cursor-pointer group"
+                        >
+                          <img
+                            src={itemPhotos[0].thumbnailUrl || itemPhotos[0].url}
+                            alt={item.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          />
+                          {itemPhotos.length > 1 && (
+                            <span className="absolute bottom-2 right-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs">
+                              +{itemPhotos.length - 1} photos
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <h3 className="text-sm font-bold text-slate-900">{item.title}</h3>
+                      <p className="text-xs text-slate-600 line-clamp-2">{item.description}</p>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200/60 space-y-1 text-xs text-slate-500 font-medium">
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate">{item.location}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate font-semibold text-slate-700">{item.contactInfo}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
+
+        {/* Report Item Modal */}
+        <Modal
+          isOpen={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+          title="Report Lost / Found Item"
+          subtitle="List an item on the campus bulletin."
+        >
+          <form onSubmit={handleReportSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Select
+                label="Item Type"
+                options={[
+                  { label: 'Lost Item', value: 'Lost' },
+                  { label: 'Found Item', value: 'Found' },
+                ]}
+                value={type}
+                onChange={(e: any) => setType(e.target.value)}
+                required
+              />
+              <Select
+                label="Category"
+                options={[
+                  { label: 'Electronics', value: 'Electronics' },
+                  { label: 'Documents / Cards', value: 'Documents' },
+                  { label: 'Accessories / Jewelry', value: 'Accessories' },
+                  { label: 'Bags / Backpacks', value: 'Bags' },
+                  { label: 'Clothing', value: 'Clothing' },
+                  { label: 'Keys', value: 'Keys' },
+                  { label: 'Other', value: 'Other' },
+                ]}
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                required
+              />
+            </div>
+
+            <Input
+              label="Item Title"
+              placeholder="e.g. Blue Backpack with Laptop"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+            />
+
+            <Input
+              label="Location"
+              placeholder="e.g. Library 2nd Floor"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              required
+            />
+
+            <Input
+              label="Contact Info"
+              placeholder="e.g. Email or Phone number"
+              value={contactInfo}
+              onChange={(e) => setContactInfo(e.target.value)}
+              required
+            />
+
+            <Textarea
+              label="Description"
+              placeholder="Describe the item details..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              required
+            />
+
+            <ImageUploader
+              label="Attach Item Photos (Optional)"
+              value={attachments}
+              onChange={setAttachments}
+              maxFiles={4}
+            />
+
+            <div className="flex justify-end gap-3 pt-4">
+              <Button type="button" variant="outline" onClick={() => setIsReportModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={submitting}>
+                Submit Item Listing
+              </Button>
+            </div>
+          </form>
+        </Modal>
       </div>
+
+      <ImageLightbox
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        attachments={lightboxImages}
+        initialIndex={lightboxIndex}
+        title={lightboxTitle}
+      />
     </AppShell>
   );
 }

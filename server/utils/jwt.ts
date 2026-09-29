@@ -88,7 +88,6 @@ export function clearAuthCookies() {
 
 /**
  * Pre-digests raw refresh token with SHA-256 and hashes with bcrypt (cost 12)
- * Ensures raw token is never stored in DB
  */
 export async function hashRefreshToken(rawRefreshToken: string): Promise<string> {
   const digest = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
