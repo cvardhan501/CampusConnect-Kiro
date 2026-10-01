@@ -1,42 +1,48 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
 import { StatCard } from '@/components/ui/StatCard';
 import { RequestCard } from '@/components/ui/RequestCard';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { ClipboardList, Wrench, AlertTriangle, ArrowRight } from 'lucide-react';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { ClipboardList, Wrench, AlertTriangle, ArrowRight, RefreshCw } from 'lucide-react';
 
 export default function StaffDashboardPage() {
   const [user, setUser] = useState<any>(null);
   const [assignedWork, setAssignedWork] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadStaffOverview = useCallback(async (isInitial = false) => {
+    if (isInitial) setLoading(true);
+    setError(null);
+    try {
+      const meRes = await fetch('/api/auth/me');
+      if (meRes.ok) {
+        const meData = await meRes.json();
+        setUser(meData.user);
+      }
+
+      const issuesRes = await fetch('/api/issues', { cache: 'no-store' });
+      if (!issuesRes.ok) {
+        throw new Error('Failed to load assigned staff tasks.');
+      }
+      const data = await issuesRes.json();
+      setAssignedWork(data.issues || []);
+    } catch (err: any) {
+      console.error('Failed to load staff overview:', err);
+      setError(err.message || 'Failed to load assigned tasks');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    async function loadStaffOverview() {
-      try {
-        const meRes = await fetch('/api/auth/me');
-        if (meRes.ok) {
-          const meData = await meRes.json();
-          setUser(meData.user);
-        }
-
-        const issuesRes = await fetch('/api/issues', { cache: 'no-store' });
-        if (issuesRes.ok) {
-          const data = await issuesRes.json();
-          setAssignedWork(data.issues || []);
-        }
-      } catch (err) {
-        console.error('Failed to load staff overview:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadStaffOverview();
-  }, []);
+    loadStaffOverview(true);
+  }, [loadStaffOverview]);
 
   const displayName = user?.displayName || 'Staff Member';
   const assignedCount = assignedWork.filter((r) => ['Assigned', 'Reported', 'Under_Review'].includes(r.status)).length;
@@ -46,7 +52,7 @@ export default function StaffDashboardPage() {
   return (
     <AppShell initialRole="staff">
       <div className="space-y-8 select-none">
-        {/* Page Header (Matching Reference Screen #1) */}
+        {/* Page Header */}
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
             Good morning, {displayName} 👋
@@ -54,7 +60,7 @@ export default function StaffDashboardPage() {
           <p className="text-sm text-slate-500 font-medium">Here's your work for today.</p>
         </div>
 
-        {/* 3 Stat Cards Row (Matching Screen #1) */}
+        {/* 3 Stat Cards Row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StatCard
             label="Assigned"
@@ -76,7 +82,7 @@ export default function StaffDashboardPage() {
           />
         </div>
 
-        {/* Today's Work Section Header (Matching Screen #1) */}
+        {/* Today's Work Section Header */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-extrabold text-slate-900">Today's Work</h2>
@@ -89,7 +95,18 @@ export default function StaffDashboardPage() {
           </div>
 
           {loading ? (
-            <div className="text-center py-8 text-xs text-slate-400 font-semibold">Loading assigned tasks...</div>
+            <LoadingState message="Loading assigned tasks..." />
+          ) : error && assignedWork.length === 0 ? (
+            <EmptyState
+              title="Failed to load tasks"
+              description={error}
+              icon={<AlertTriangle className="w-8 h-8 text-amber-500" />}
+              action={
+                <Button variant="outline" onClick={() => loadStaffOverview(true)} icon={<RefreshCw className="w-4 h-4" />}>
+                  Retry
+                </Button>
+              }
+            />
           ) : assignedWork.length === 0 ? (
             <EmptyState
               title="No tasks assigned"
@@ -108,3 +125,4 @@ export default function StaffDashboardPage() {
     </AppShell>
   );
 }
+
