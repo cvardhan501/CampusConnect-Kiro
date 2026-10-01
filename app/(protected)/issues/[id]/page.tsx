@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
@@ -9,7 +9,9 @@ import { PriorityBadge } from '@/components/ui/PriorityBadge';
 import { StatusTimeline } from '@/components/ui/StatusTimeline';
 import { Button } from '@/components/ui/Button';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
-import { ArrowLeft, MapPin, Tag, Calendar, User, Building, CheckCircle2, Image as ImageIcon } from 'lucide-react';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ArrowLeft, MapPin, Tag, Calendar, User, Building, CheckCircle2, Image as ImageIcon, AlertTriangle, RefreshCw } from 'lucide-react';
 
 export default function RequestDetailsPage() {
   const params = useParams();
@@ -25,24 +27,29 @@ export default function RequestDetailsPage() {
   const [lightboxImages, setLightboxImages] = useState<any[]>([]);
   const [lightboxTitle, setLightboxTitle] = useState('Attached Photos');
 
-  useEffect(() => {
-    async function loadRequest() {
-      try {
-        const res = await fetch(`/api/issues/${id}`, { cache: 'no-store' });
-        if (!res.ok) {
-          throw new Error('Request not found or access denied');
-        }
-        const data = await res.json();
-        setRequest(data.issue);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load request details');
-      } finally {
-        setLoading(false);
+  const loadRequest = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/issues/${id}`, { cache: 'no-store' });
+      if (res.status === 404) {
+        throw new Error('Request not found. The issue may have been removed or you do not have permission to view it.');
       }
+      if (!res.ok) {
+        throw new Error('Failed to load request details. Please try again.');
+      }
+      const data = await res.json();
+      setRequest(data.issue);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load request details');
+    } finally {
+      setLoading(false);
     }
-
-    if (id) loadRequest();
   }, [id]);
+
+  useEffect(() => {
+    if (id) loadRequest();
+  }, [id, loadRequest]);
 
   const openLightbox = (images: any[], index: number, title: string) => {
     setLightboxImages(images);
@@ -54,7 +61,7 @@ export default function RequestDetailsPage() {
   if (loading) {
     return (
       <AppShell initialRole="student">
-        <div className="text-center py-12 text-slate-400 text-xs font-semibold">Loading request details...</div>
+        <LoadingState message="Loading request details..." />
       </AppShell>
     );
   }
@@ -62,11 +69,24 @@ export default function RequestDetailsPage() {
   if (error || !request) {
     return (
       <AppShell initialRole="student">
-        <div className="max-w-xl mx-auto py-12 text-center space-y-4">
-          <p className="text-sm font-bold text-red-600">{error || 'Request not found'}</p>
-          <Button variant="outline" onClick={() => router.push('/issues')}>
-            ← Back to My Requests
-          </Button>
+        <div className="max-w-xl mx-auto py-12">
+          <EmptyState
+            title="Unable to load request"
+            description={error || 'Request not found'}
+            icon={<AlertTriangle className="w-8 h-8 text-amber-500" />}
+            action={
+              <div className="flex flex-wrap items-center gap-3 justify-center">
+                <Button variant="outline" onClick={() => loadRequest()} icon={<RefreshCw className="w-4 h-4" />}>
+                  Try Again
+                </Button>
+                <Link href="/issues">
+                  <Button icon={<ArrowLeft className="w-4 h-4" />}>
+                    Back to My Requests
+                  </Button>
+                </Link>
+              </div>
+            }
+          />
         </div>
       </AppShell>
     );
