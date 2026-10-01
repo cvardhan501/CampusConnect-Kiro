@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
 import { StatCard } from '@/components/ui/StatCard';
@@ -8,7 +8,8 @@ import { PriorityBadge } from '@/components/ui/PriorityBadge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { ClipboardList, Clock, Wrench, ShieldCheck, ArrowRight, UserCheck } from 'lucide-react';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { ClipboardList, Clock, Wrench, ShieldCheck, ArrowRight, UserCheck, RefreshCw, AlertTriangle } from 'lucide-react';
 
 export default function AdminOverviewPage() {
   const [stats, setStats] = useState({
@@ -20,54 +21,59 @@ export default function AdminOverviewPage() {
   const [attentionRequests, setAttentionRequests] = useState<any[]>([]);
   const [staffList, setStaffList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadAdminOverview = useCallback(async (isInitial = false) => {
+    if (isInitial) setLoading(true);
+    setError(null);
+    try {
+      const issuesRes = await fetch('/api/issues', { cache: 'no-store' });
+      if (!issuesRes.ok) {
+        throw new Error('Failed to load campus operations data.');
+      }
+      const issuesData = await issuesRes.json();
+      const all = issuesData.issues || [];
+
+      setStats({
+        total: all.length,
+        pending: all.filter((r: any) => ['Reported', 'Under_Review'].includes(r.status)).length,
+        active: all.filter((r: any) => ['Assigned', 'In_Progress'].includes(r.status)).length,
+        completed: all.filter((r: any) => ['Resolved', 'Verified'].includes(r.status)).length,
+      });
+
+      // Requests requiring attention (High/Critical priority or unassigned pending)
+      const urgent = all.filter((r: any) =>
+        ['Reported', 'Under_Review', 'Assigned'].includes(r.status)
+      );
+      setAttentionRequests(urgent.slice(0, 4));
+
+      const staffRes = await fetch('/api/admin/users?role=Staff', { cache: 'no-store' });
+      if (staffRes.ok) {
+        const staffData = await staffRes.json();
+        setStaffList((staffData.users || []).slice(0, 4));
+      }
+    } catch (err: any) {
+      console.error('Failed to load admin overview:', err);
+      setError(err.message || 'Failed to load operations overview');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    async function loadAdminOverview() {
-      try {
-        const issuesRes = await fetch('/api/issues', { cache: 'no-store' });
-        if (issuesRes.ok) {
-          const issuesData = await issuesRes.json();
-          const all = issuesData.issues || [];
-
-          setStats({
-            total: all.length,
-            pending: all.filter((r: any) => ['Reported', 'Under_Review'].includes(r.status)).length,
-            active: all.filter((r: any) => ['Assigned', 'In_Progress'].includes(r.status)).length,
-            completed: all.filter((r: any) => ['Resolved', 'Verified'].includes(r.status)).length,
-          });
-
-          // Requests requiring attention (High/Critical priority or unassigned pending)
-          const urgent = all.filter((r: any) =>
-            ['Reported', 'Under_Review', 'Assigned'].includes(r.status)
-          );
-          setAttentionRequests(urgent.slice(0, 4));
-        }
-
-        const staffRes = await fetch('/api/admin/users?role=Staff', { cache: 'no-store' });
-        if (staffRes.ok) {
-          const staffData = await staffRes.json();
-          setStaffList((staffData.users || []).slice(0, 4));
-        }
-      } catch (err) {
-        console.error('Failed to load admin overview:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadAdminOverview();
-  }, []);
+    loadAdminOverview(true);
+  }, [loadAdminOverview]);
 
   return (
     <AppShell initialRole="admin">
       <div className="space-y-8 select-none">
-        {/* Page Header (Matching Screen #6) */}
+        {/* Page Header */}
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Campus Operations</h1>
           <p className="text-sm text-slate-500 font-medium">Here's what's happening across the campus.</p>
         </div>
 
-        {/* 4 Stat Cards Row (Matching Screen #6) */}
+        {/* 4 Stat Cards Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             label="Total Requests"
@@ -107,7 +113,18 @@ export default function AdminOverviewPage() {
             </div>
 
             {loading ? (
-              <div className="text-center py-8 text-xs text-slate-400 font-semibold">Loading operations data...</div>
+              <LoadingState message="Loading operations data..." />
+            ) : error && attentionRequests.length === 0 ? (
+              <EmptyState
+                title="Failed to load operations data"
+                description={error}
+                icon={<AlertTriangle className="w-8 h-8 text-amber-500" />}
+                action={
+                  <Button variant="outline" onClick={() => loadAdminOverview(true)} icon={<RefreshCw className="w-4 h-4" />}>
+                    Retry
+                  </Button>
+                }
+              />
             ) : attentionRequests.length === 0 ? (
               <EmptyState
                 title="No pending reviews"
