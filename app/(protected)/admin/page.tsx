@@ -175,7 +175,7 @@ export default function AdminOverviewPage() {
 
             <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs space-y-4">
               {staffList.length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-4">No staff members configured.</p>
+                <p className="text-xs text-slate-500 font-medium text-center py-4">No staff members configured.</p>
               ) : (
                 <div className="space-y-3">
                   {staffList.map((s) => (

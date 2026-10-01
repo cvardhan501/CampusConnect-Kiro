@@ -175,7 +175,7 @@ export default function StudentDashboardPage() {
               </div>
 
               {announcements.length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-4">No campus announcements.</p>
+                <p className="text-xs text-slate-500 font-medium text-center py-4">No campus announcements.</p>
               ) : (
                 <div className="space-y-3">
                   {announcements.map((ann) => (
@@ -203,7 +203,7 @@ export default function StudentDashboardPage() {
               </div>
 
               {lostFound.length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-4">No items listed yet.</p>
+                <p className="text-xs text-slate-500 font-medium text-center py-4">No items listed yet.</p>
               ) : (
                 <div className="space-y-2.5">
                   {lostFound.map((item) => (
