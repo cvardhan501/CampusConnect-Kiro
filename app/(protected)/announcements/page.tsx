@@ -1,61 +1,92 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { Megaphone, Calendar, User } from 'lucide-react';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { Button } from '@/components/ui/Button';
+import { Bell, Calendar, User, RefreshCw, AlertTriangle } from 'lucide-react';
 
-export default function AnnouncementsPage() {
+export default function NotificationsPage() {
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadAnnouncements = useCallback(async (isInitial = false) => {
+    if (isInitial) setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/announcements', { cache: 'no-store' });
+      if (!res.ok) {
+        throw new Error('Failed to load notifications from server. Please try again.');
+      }
+      const data = await res.json();
+      setAnnouncements(data.announcements || []);
+    } catch (err: any) {
+      console.error('Failed to load notifications:', err);
+      setError(err.message || 'Failed to load notifications');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    async function loadAnnouncements() {
-      try {
-        const res = await fetch('/api/announcements', { cache: 'no-store' });
-        if (res.ok) {
-          const data = await res.json();
-          setAnnouncements(data.announcements || []);
-        }
-      } catch (err) {
-        console.error('Failed to load announcements:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadAnnouncements();
-  }, []);
+    loadAnnouncements(true);
+  }, [loadAnnouncements]);
 
   const filtered = announcements.filter((a) => {
     const s = searchQuery.toLowerCase();
-    return !searchQuery || a.title?.toLowerCase().includes(s) || a.content?.toLowerCase().includes(s);
+    return !searchQuery || a.title?.toLowerCase().includes(s) || a.content?.toLowerCase().includes(s) || a.category?.toLowerCase().includes(s);
   });
 
   return (
     <AppShell initialRole="student">
       <div className="space-y-6 select-none max-w-4xl mx-auto">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Campus Updates</h1>
-          <p className="text-sm text-slate-500 font-medium">Official announcements and operational news.</p>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Notifications & Updates</h1>
+          <p className="text-sm text-slate-500 font-medium">Official campus announcements and operational updates.</p>
         </div>
 
         <SearchInput
-          placeholder="Search updates by title or topic..."
+          placeholder="Search notifications by title or topic..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
 
         {loading ? (
-          <div className="text-center text-xs text-slate-400 py-8">Loading updates...</div>
-        ) : filtered.length === 0 ? (
+          <LoadingState message="Loading notifications..." />
+        ) : error && announcements.length === 0 ? (
           <EmptyState
-            title="No announcements posted"
-            description="Official campus announcements will be posted here."
-            icon={<Megaphone className="w-8 h-8 text-[#2563eb]" />}
+            title="Unable to load notifications"
+            description={error}
+            icon={<AlertTriangle className="w-8 h-8 text-amber-500" />}
+            action={
+              <Button variant="outline" onClick={() => loadAnnouncements(true)} icon={<RefreshCw className="w-4 h-4" />}>
+                Retry
+              </Button>
+            }
           />
+        ) : filtered.length === 0 ? (
+          searchQuery ? (
+            <EmptyState
+              title="No matching notifications"
+              description="No notifications match your search query."
+              icon={<Bell className="w-8 h-8 text-[#2563eb]" />}
+              action={
+                <Button variant="outline" onClick={() => setSearchQuery('')}>
+                  Clear Search
+                </Button>
+              }
+            />
+          ) : (
+            <EmptyState
+              title="No notifications posted"
+              description="Official campus notifications and updates will appear here."
+              icon={<Bell className="w-8 h-8 text-[#2563eb]" />}
+            />
+          )
         ) : (
           <div className="space-y-4">
             {filtered.map((ann) => (
@@ -81,7 +112,7 @@ export default function AnnouncementsPage() {
                     </span>
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5" />
-                      {new Date(ann.createdAt).toLocaleDateString()}
+                      {ann.createdAt ? new Date(ann.createdAt).toLocaleString() : 'Recently'}
                     </span>
                   </div>
                 </div>
