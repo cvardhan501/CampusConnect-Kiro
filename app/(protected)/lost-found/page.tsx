@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Tabs } from '@/components/ui/Tabs';
 import { SearchInput } from '@/components/ui/SearchInput';
@@ -10,16 +10,18 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { ImageUploader } from '@/components/ui/ImageUploader';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
 import { IAttachment } from '@/server/models/Issue';
-import { PackageSearch, Plus, MapPin, Phone, Image as ImageIcon } from 'lucide-react';
+import { PackageSearch, Plus, MapPin, Phone, RefreshCw, AlertTriangle } from 'lucide-react';
 
 export default function LostFoundPage() {
   const [activeTab, setActiveTab] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // Modal Form State
@@ -38,23 +40,27 @@ export default function LostFoundPage() {
   const [lightboxImages, setLightboxImages] = useState<any[]>([]);
   const [lightboxTitle, setLightboxTitle] = useState('Item Photos');
 
-  useEffect(() => {
-    async function loadItems() {
-      try {
-        const res = await fetch('/api/lost-found', { cache: 'no-store' });
-        if (res.ok) {
-          const data = await res.json();
-          setItems(data.items || []);
-        }
-      } catch (err) {
-        console.error('Failed to load Lost & Found:', err);
-      } finally {
-        setLoading(false);
+  const loadItems = useCallback(async (isInitial = false) => {
+    if (isInitial) setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/lost-found', { cache: 'no-store' });
+      if (!res.ok) {
+        throw new Error('Failed to fetch Lost & Found items. Please try again.');
       }
+      const data = await res.json();
+      setItems(data.items || []);
+    } catch (err: any) {
+      console.error('Failed to load Lost & Found:', err);
+      setError(err.message || 'Failed to load items');
+    } finally {
+      setLoading(false);
     }
-
-    loadItems();
   }, []);
+
+  useEffect(() => {
+    loadItems(true);
+  }, [loadItems]);
 
   const openLightbox = (images: any[], index: number, titleStr: string) => {
     setLightboxImages(images);
@@ -90,11 +96,7 @@ export default function LostFoundPage() {
         setLocation('');
         setAttachments([]);
         // Refresh list
-        const listRes = await fetch('/api/lost-found', { cache: 'no-store' });
-        if (listRes.ok) {
-          const data = await listRes.json();
-          setItems(data.items || []);
-        }
+        loadItems(false);
       }
     } catch (err) {
       console.error('Failed to report item:', err);
@@ -146,18 +148,42 @@ export default function LostFoundPage() {
           />
 
           {loading ? (
-            <div className="text-center text-xs text-slate-400 py-8">Loading items...</div>
-          ) : filteredItems.length === 0 ? (
+            <LoadingState message="Loading Lost & Found items..." />
+          ) : error && items.length === 0 ? (
             <EmptyState
-              title="No items found"
-              description="Report a lost or found item to list it on the campus bulletin."
-              icon={<PackageSearch className="w-8 h-8 text-[#2563eb]" />}
+              title="Failed to load items"
+              description={error}
+              icon={<AlertTriangle className="w-8 h-8 text-amber-500" />}
               action={
-                <Button icon={<Plus className="w-4 h-4" />} onClick={() => setIsReportModalOpen(true)}>
-                  Report Item
+                <Button variant="outline" onClick={() => loadItems(true)} icon={<RefreshCw className="w-4 h-4" />}>
+                  Retry
                 </Button>
               }
             />
+          ) : filteredItems.length === 0 ? (
+            searchQuery || activeTab !== 'All' ? (
+              <EmptyState
+                title="No matching items"
+                description="No lost or found items match your current search or category filter."
+                icon={<PackageSearch className="w-8 h-8 text-[#2563eb]" />}
+                action={
+                  <Button variant="outline" onClick={() => { setSearchQuery(''); setActiveTab('All'); }}>
+                    Clear Filters
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                title="No items found"
+                description="Report a lost or found item to list it on the campus bulletin."
+                icon={<PackageSearch className="w-8 h-8 text-[#2563eb]" />}
+                action={
+                  <Button icon={<Plus className="w-4 h-4" />} onClick={() => setIsReportModalOpen(true)}>
+                    Report Item
+                  </Button>
+                }
+              />
+            )
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredItems.map((item) => {
