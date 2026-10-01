@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
 import { StatCard } from '@/components/ui/StatCard';
 import { RequestCard } from '@/components/ui/RequestCard';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { Plus, ClipboardList, PackageSearch, Megaphone, ArrowRight, Wrench, ShieldCheck } from 'lucide-react';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { Plus, ClipboardList, PackageSearch, Megaphone, ArrowRight, Wrench, ShieldCheck, RefreshCw, AlertTriangle } from 'lucide-react';
 
 export default function StudentDashboardPage() {
   const [user, setUser] = useState<any>(null);
@@ -15,42 +16,47 @@ export default function StudentDashboardPage() {
   const [lostFound, setLostFound] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadStudentData = useCallback(async (isInitial = false) => {
+    if (isInitial) setLoading(true);
+    setError(null);
+    try {
+      const meRes = await fetch('/api/auth/me');
+      if (meRes.ok) {
+        const meData = await meRes.json();
+        setUser(meData.user);
+      }
+
+      const issuesRes = await fetch('/api/issues', { cache: 'no-store' });
+      if (!issuesRes.ok) {
+        throw new Error('Failed to load student dashboard data.');
+      }
+      const issuesData = await issuesRes.json();
+      setRequests(issuesData.issues || []);
+
+      const lfRes = await fetch('/api/lost-found', { cache: 'no-store' });
+      if (lfRes.ok) {
+        const lfData = await lfRes.json();
+        setLostFound((lfData.items || []).slice(0, 3));
+      }
+
+      const annRes = await fetch('/api/announcements', { cache: 'no-store' });
+      if (annRes.ok) {
+        const annData = await annRes.json();
+        setAnnouncements((annData.announcements || []).slice(0, 2));
+      }
+    } catch (err: any) {
+      console.error('Failed to load student dashboard:', err);
+      setError(err.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    async function loadStudentData() {
-      try {
-        const meRes = await fetch('/api/auth/me');
-        if (meRes.ok) {
-          const meData = await meRes.json();
-          setUser(meData.user);
-        }
-
-        const issuesRes = await fetch('/api/issues', { cache: 'no-store' });
-        if (issuesRes.ok) {
-          const issuesData = await issuesRes.json();
-          setRequests(issuesData.issues || []);
-        }
-
-        const lfRes = await fetch('/api/lost-found', { cache: 'no-store' });
-        if (lfRes.ok) {
-          const lfData = await lfRes.json();
-          setLostFound((lfData.items || []).slice(0, 3));
-        }
-
-        const annRes = await fetch('/api/announcements', { cache: 'no-store' });
-        if (annRes.ok) {
-          const annData = await annRes.json();
-          setAnnouncements((annData.announcements || []).slice(0, 2));
-        }
-      } catch (err) {
-        console.error('Failed to load student dashboard:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadStudentData();
-  }, []);
+    loadStudentData(true);
+  }, [loadStudentData]);
 
   const displayName = user?.displayName || 'Student';
   const activeCount = requests.filter((r) =>
@@ -120,7 +126,18 @@ export default function StudentDashboardPage() {
             </div>
 
             {loading ? (
-              <div className="text-center py-8 text-xs text-slate-400">Loading requests...</div>
+              <LoadingState message="Loading dashboard requests..." />
+            ) : error && requests.length === 0 ? (
+              <EmptyState
+                title="Failed to load dashboard data"
+                description={error}
+                icon={<AlertTriangle className="w-8 h-8 text-amber-500" />}
+                action={
+                  <Button variant="outline" onClick={() => loadStudentData(true)} icon={<RefreshCw className="w-4 h-4" />}>
+                    Retry
+                  </Button>
+                }
+              />
             ) : requests.length === 0 ? (
               <EmptyState
                 title="No active requests"
