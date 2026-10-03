@@ -10,6 +10,9 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, helperText, icon, className = '', id, ...props }, ref) => {
     const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
+    const errorId = inputId && error ? `${inputId}-error` : undefined;
+    const helperId = inputId && helperText && !error ? `${inputId}-helper` : undefined;
+    const describedBy = errorId || helperId || props['aria-describedby'];
 
     return (
       <div className="w-full space-y-1.5">
@@ -24,14 +27,24 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           <input
             id={inputId}
             ref={ref}
-            className={`w-full rounded-xl border bg-slate-50/70 py-2.5 px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#2563eb] focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all ${
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy}
+            className={`w-full rounded-xl border bg-slate-50/70 py-2.5 px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#2563eb] focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 transition-all ${
               icon ? 'pl-10' : ''
             } ${error ? 'border-red-500 focus:ring-red-100' : 'border-slate-200/90'} ${className}`}
             {...props}
           />
         </div>
-        {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
-        {helperText && !error && <p className="text-xs text-slate-500 font-medium">{helperText}</p>}
+        {error && (
+          <p id={errorId} className="text-xs text-red-600 font-medium">
+            {error}
+          </p>
+        )}
+        {helperText && !error && (
+          <p id={helperId} className="text-xs text-slate-500 font-medium">
+            {helperText}
+          </p>
+        )}
       </div>
     );
   }
