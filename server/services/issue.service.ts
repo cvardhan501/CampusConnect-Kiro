@@ -150,6 +150,10 @@ export class IssueService {
     const issue = await Issue.findById(issueId);
     if (!issue) throw new Error('Issue not found');
 
+    if (!issue.ticketId) {
+      issue.ticketId = `CC-2026-${issue._id.toString().slice(-5).toUpperCase()}`;
+    }
+
     issue.assignedTo = staffUser._id;
     issue.department = staffUser.department || issue.category;
     if (['Reported', 'Under_Review'].includes(issue.status)) {
@@ -193,6 +197,10 @@ export class IssueService {
 
     const issue = await Issue.findById(issueId);
     if (!issue) throw new Error('Issue not found');
+
+    if (!issue.ticketId) {
+      issue.ticketId = `CC-2026-${issue._id.toString().slice(-5).toUpperCase()}`;
+    }
 
     const prevStatus = issue.status;
     issue.status = newStatus;

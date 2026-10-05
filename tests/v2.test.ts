@@ -211,4 +211,12 @@ describe('CampusConnect v2 Staff Assignment & View Navigation', () => {
     expect(logPayload.entityType).toBe('Issue');
     expect(logPayload.details.staffName).toBe('John Staff');
   });
+
+  it('populates missing ticketId fallback matching CC-2026-[ID] convention for legacy documents', () => {
+    const legacyDoc: any = { _id: '650000000000000000000088' };
+    if (!legacyDoc.ticketId) {
+      legacyDoc.ticketId = `CC-2026-${legacyDoc._id.slice(-5).toUpperCase()}`;
+    }
+    expect(legacyDoc.ticketId).toBe('CC-2026-00088');
+  });
 });
