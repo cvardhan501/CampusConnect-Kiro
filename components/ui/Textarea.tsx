@@ -33,7 +33,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           {...props}
         />
         {error && (
-          <p id={errorId} className="text-xs text-red-600 font-medium">
+          <p id={errorId} role="alert" className="text-xs text-red-600 font-medium">
             {error}
           </p>
         )}
