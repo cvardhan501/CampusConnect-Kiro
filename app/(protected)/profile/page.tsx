@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Avatar } from '@/components/ui/Avatar';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { Mail, Phone, Building, IdCard, Shield } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -39,7 +40,7 @@ export default function ProfilePage() {
         </div>
 
         {loading ? (
-          <div className="text-center py-12 text-xs font-semibold text-slate-400">Loading user profile...</div>
+          <LoadingState message="Loading user profile..." />
         ) : !user ? (
           <div className="text-center py-12 text-xs font-semibold text-slate-400">User details unavailable.</div>
         ) : (
