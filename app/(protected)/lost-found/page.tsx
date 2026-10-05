@@ -197,19 +197,26 @@ export default function LostFoundPage() {
                     className="bg-slate-50/70 rounded-2xl p-4 border border-slate-200/80 shadow-2xs space-y-3 flex flex-col justify-between"
                   >
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-                            item.type === 'Found'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-amber-50 text-amber-700 border-amber-200'
-                          }`}
-                          role="status"
-                          aria-label={`Item status: ${item.type}`}
-                          title={`Item status: ${item.type}`}
-                        >
-                          {item.type} Item
-                        </span>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                              item.type === 'Found'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}
+                            role="status"
+                            aria-label={`Item status: ${item.type}`}
+                            title={`Item status: ${item.type}`}
+                          >
+                            {item.type} Item
+                          </span>
+                          {item.category && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                              {item.category}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[10px] text-slate-400 font-medium">
                           {new Date(item.createdAt || item.date).toLocaleDateString()}
                         </span>
@@ -218,8 +225,17 @@ export default function LostFoundPage() {
                       {/* Photo Thumbnail Display */}
                       {itemPhotos.length > 0 && (
                         <div
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`View photo of ${item.title}`}
                           onClick={() => openLightbox(itemPhotos, 0, item.title)}
-                          className="relative h-40 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 cursor-pointer group"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              openLightbox(itemPhotos, 0, item.title);
+                            }
+                          }}
+                          className="relative h-40 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
                         >
                           <img
                             src={itemPhotos[0].thumbnailUrl || itemPhotos[0].url}
