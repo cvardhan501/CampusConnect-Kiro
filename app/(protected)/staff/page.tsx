@@ -110,8 +110,15 @@ export default function StaffDashboardPage() {
           ) : assignedWork.length === 0 ? (
             <EmptyState
               title="No tasks assigned"
-              description="Tasks assigned to your department will appear here for review and verification."
+              description="Tasks assigned to your department will appear here for review and verification. You can check all campus requests to see unassigned issues."
               icon={<ClipboardList className="w-8 h-8 text-[#2563eb]" />}
+              action={
+                <Link href="/staff/issues">
+                  <Button variant="outline" icon={<ArrowRight className="w-4 h-4" />}>
+                    View All Issues
+                  </Button>
+                </Link>
+              }
             />
           ) : (
             <div className="space-y-3">
