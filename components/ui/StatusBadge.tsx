@@ -20,9 +20,18 @@ export type CanonicalStatus =
 export interface StatusBadgeProps {
   status: CanonicalStatus;
   userFacing?: boolean;
+  className?: string;
+  'aria-label'?: string;
+  title?: string;
 }
 
-export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, userFacing = true }) => {
+export const StatusBadge: React.FC<StatusBadgeProps> = ({
+  status,
+  userFacing = true,
+  className = '',
+  'aria-label': customAriaLabel,
+  title: customTitle,
+}) => {
   const norm = (status || '').toString().toLowerCase();
 
   let label = status;
@@ -48,9 +57,23 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, userFacing = t
     bgClass = 'bg-purple-50 text-purple-700 border-purple-200';
   }
 
+  const formattedStatusName = status ? status.toString().replace(/_/g, ' ') : '';
+  const isDifferentFromLabel =
+    userFacing && formattedStatusName && formattedStatusName.toLowerCase() !== label.toLowerCase();
+
+  const defaultDescription = isDifferentFromLabel
+    ? `Status: ${label} (${formattedStatusName})`
+    : `Status: ${label}`;
+
+  const computedAriaLabel = customAriaLabel || defaultDescription;
+  const computedTitle = customTitle || defaultDescription;
+
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border transition-colors ${bgClass}`}
+      role="status"
+      aria-label={computedAriaLabel}
+      title={computedTitle}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border transition-colors ${bgClass} ${className}`.trim()}
     >
       {label}
     </span>

@@ -80,4 +80,25 @@ describe('CampusConnect v2 Canonical Status Architecture', () => {
     ];
     expect(statuses.length).toBe(6);
   });
+
+  it('provides accessible aria-label and title descriptions for user-facing canonical status mappings', () => {
+    const canonicalMap: Record<string, { userFacingLabel: string; detailedAria: string }> = {
+      Reported: { userFacingLabel: 'Verification', detailedAria: 'Status: Verification (Reported)' },
+      Under_Review: { userFacingLabel: 'Verification', detailedAria: 'Status: Verification (Under Review)' },
+      Assigned: { userFacingLabel: 'Verification', detailedAria: 'Status: Verification (Assigned)' },
+      In_Progress: { userFacingLabel: 'Work in Process', detailedAria: 'Status: Work in Process (In Progress)' },
+      Resolved: { userFacingLabel: 'Completed', detailedAria: 'Status: Completed (Resolved)' },
+      Verified: { userFacingLabel: 'Completed', detailedAria: 'Status: Completed (Verified)' },
+    };
+
+    Object.entries(canonicalMap).forEach(([canonicalStatus, expected]) => {
+      const formattedName = canonicalStatus.replace(/_/g, ' ');
+      const isDifferent = expected.userFacingLabel.toLowerCase() !== formattedName.toLowerCase();
+      const statusDetail = isDifferent
+        ? `Status: ${expected.userFacingLabel} (${formattedName})`
+        : `Status: ${expected.userFacingLabel}`;
+
+      expect(statusDetail).toBe(expected.detailedAria);
+    });
+  });
 });

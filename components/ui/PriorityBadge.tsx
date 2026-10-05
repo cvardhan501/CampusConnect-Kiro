@@ -4,9 +4,17 @@ export type IssuePriority = 'Low' | 'Medium' | 'High' | 'Critical' | string;
 
 export interface PriorityBadgeProps {
   priority: IssuePriority;
+  className?: string;
+  'aria-label'?: string;
+  title?: string;
 }
 
-export const PriorityBadge: React.FC<PriorityBadgeProps> = ({ priority }) => {
+export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
+  priority,
+  className = '',
+  'aria-label': customAriaLabel,
+  title: customTitle,
+}) => {
   const norm = (priority || '').toString().toLowerCase();
 
   let label = priority || 'Medium';
@@ -23,11 +31,18 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({ priority }) => {
     bgClass = 'bg-red-50 text-red-700 border-red-200';
   }
 
+  const priorityDetail = `Priority: ${label}`;
+  const computedAriaLabel = customAriaLabel || priorityDetail;
+  const computedTitle = customTitle || priorityDetail;
+
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border ${bgClass}`}
+      role="status"
+      aria-label={computedAriaLabel}
+      title={computedTitle}
+      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border ${bgClass} ${className}`.trim()}
     >
-      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+      <span className="w-1.5 h-1.5 rounded-full bg-current" aria-hidden="true" />
       {label}
     </span>
   );
