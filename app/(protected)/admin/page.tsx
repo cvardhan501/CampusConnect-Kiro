@@ -154,7 +154,7 @@ export default function AdminOverviewPage() {
                       <PriorityBadge priority={req.priority} />
                       <Link href={`/admin/issues/${req._id || req.id}`}>
                         <Button size="sm" variant="outline">
-                          Assign
+                          View
                         </Button>
                       </Link>
                     </div>

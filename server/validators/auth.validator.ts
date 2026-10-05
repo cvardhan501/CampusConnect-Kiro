@@ -37,5 +37,24 @@ export const LoginSchema = z.object({
     .min(1, 'Password cannot be empty'),
 });
 
+export const UpdatePasswordSchema = z
+  .object({
+    currentPassword: z
+      .string({ required_error: 'Current password is required' })
+      .min(1, 'Current password is required'),
+    newPassword: z
+      .string({ required_error: 'New password is required' })
+      .min(10, 'New password must be at least 10 characters long')
+      .max(128, 'New password cannot exceed 128 characters'),
+    confirmPassword: z
+      .string({ required_error: 'Confirm password is required' })
+      .min(1, 'Confirm password is required'),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: 'New password and confirm password do not match',
+    path: ['confirmPassword'],
+  });
+
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 export type LoginInput = z.infer<typeof LoginSchema>;
+export type UpdatePasswordInput = z.infer<typeof UpdatePasswordSchema>;

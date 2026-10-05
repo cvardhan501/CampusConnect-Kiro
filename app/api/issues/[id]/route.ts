@@ -20,8 +20,22 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Forbidden: Access denied' }, { status: 403 });
   }
 
-  if (rawRole === 'staff' && issue.assignedTo?._id.toString() !== payload.sub) {
-    return NextResponse.json({ error: 'Forbidden: Request not assigned to you' }, { status: 403 });
+  if (rawRole === 'staff') {
+    const assignedId = issue.assignedTo?._id?.toString() || issue.assignedTo?.toString();
+    const isAssignedToMe = assignedId === payload.sub;
+
+    if (!isAssignedToMe) {
+      const { User } = await import('@/server/models/User');
+      const staffUser = await User.findById(payload.sub);
+      const isSameDepartment =
+        staffUser?.department &&
+        issue.department &&
+        staffUser.department.toLowerCase() === issue.department.toLowerCase();
+
+      if (!isSameDepartment && assignedId) {
+        return NextResponse.json({ error: 'Forbidden: Request not assigned to you' }, { status: 403 });
+      }
+    }
   }
 
   return NextResponse.json({ issue });

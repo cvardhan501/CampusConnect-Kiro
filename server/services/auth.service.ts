@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { connectToDatabase } from '../db/connection';
 import { User, IUser } from '../models/User';
 import { signAccessToken, signRefreshToken, hashRefreshToken } from '../utils/jwt';
-import { RegisterInput } from '../validators/auth.validator';
+import { RegisterInput, UpdatePasswordInput } from '../validators/auth.validator';
 import { ActivityLog } from '../models/ActivityLog';
 
 const BCRYPT_ROUNDS = 12;
@@ -107,6 +107,64 @@ export class AuthService {
 
     user.refreshTokenHash = await hashRefreshToken(refreshToken);
     await user.save();
+
+    return { user, accessToken, refreshToken };
+  }
+
+  static async updatePassword(
+    userId: string,
+    input: UpdatePasswordInput
+  ): Promise<{ user: IUser; accessToken: string; refreshToken: string }> {
+    await connectToDatabase();
+
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error('User account not found');
+    }
+
+    if (user.status === 'Deactivated') {
+      throw new Error('Account has been deactivated. Please contact an Administrator.');
+    }
+
+    const isMatch = await bcrypt.compare(input.currentPassword, user.passwordHash);
+    if (!isMatch) {
+      throw new Error('Current password is incorrect');
+    }
+
+    if (input.currentPassword === input.newPassword) {
+      throw new Error('New password must be different from current password');
+    }
+
+    const newPasswordHash = await bcrypt.hash(input.newPassword, BCRYPT_ROUNDS);
+
+    user.passwordHash = newPasswordHash;
+    user.sessionVersion = (user.sessionVersion || 1) + 1;
+
+    const jti = crypto.randomUUID();
+    const accessToken = await signAccessToken({
+      sub: user._id.toString(),
+      role: user.role,
+      sessionVersion: user.sessionVersion,
+    });
+
+    const refreshToken = await signRefreshToken({
+      sub: user._id.toString(),
+      jti,
+    });
+
+    user.refreshTokenHash = await hashRefreshToken(refreshToken);
+    await user.save();
+
+    await ActivityLog.create({
+      actingUserId: user._id,
+      actingUserName: user.displayName,
+      actingUserRole: user.role,
+      actionType: 'ADMIN_PASSWORD_UPDATED',
+      entityType: 'User',
+      entityId: user._id,
+      details: { email: user.email, role: user.role },
+      timestamp: new Date(),
+    });
 
     return { user, accessToken, refreshToken };
   }

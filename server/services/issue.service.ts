@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { connectToDatabase } from '../db/connection';
 import { Issue, IIssue, IssuePriority, IssueStatus, IAttachment } from '../models/Issue';
 import { ActivityLog } from '../models/ActivityLog';
@@ -122,6 +123,9 @@ export class IssueService {
 
   static async getIssueById(id: string) {
     await connectToDatabase();
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return null;
+    }
     return Issue.findById(id)
       .populate('reporter', 'displayName email role campusId department contactPhone phoneNumber')
       .populate('assignedTo', 'displayName email role department contactPhone phoneNumber');
@@ -130,9 +134,17 @@ export class IssueService {
   static async assignStaff(issueId: string, staffId: string, actingUser: any, note?: string) {
     await connectToDatabase();
 
+    if (!staffId || !mongoose.Types.ObjectId.isValid(staffId)) {
+      throw new Error('Invalid staff member selected');
+    }
+
     const staffUser = await User.findById(staffId);
     if (!staffUser || (staffUser.role !== 'Staff' && staffUser.role !== 'Administrator')) {
       throw new Error('Selected user is not an eligible staff member');
+    }
+
+    if (!issueId || !mongoose.Types.ObjectId.isValid(issueId)) {
+      throw new Error('Invalid issue ID');
     }
 
     const issue = await Issue.findById(issueId);
@@ -140,7 +152,7 @@ export class IssueService {
 
     issue.assignedTo = staffUser._id;
     issue.department = staffUser.department || issue.category;
-    if (issue.status === 'Reported') {
+    if (['Reported', 'Under_Review'].includes(issue.status)) {
       issue.status = 'Assigned';
     }
 
@@ -166,7 +178,7 @@ export class IssueService {
       timestamp: new Date(),
     });
 
-    return issue;
+    return await IssueService.getIssueById(issue._id.toString());
   }
 
   static async updateStatus(

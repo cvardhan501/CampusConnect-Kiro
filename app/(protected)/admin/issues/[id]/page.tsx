@@ -29,6 +29,8 @@ export default function AdminRequestManagementPage() {
   const [selectedStaffId, setSelectedStaffId] = useState('');
   const [assignNote, setAssignNote] = useState('');
   const [assigning, setAssigning] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [assignSuccessMessage, setAssignSuccessMessage] = useState<string | null>(null);
 
   // Status Change Modal
   const [statusModalOpen, setStatusModalOpen] = useState(false);
@@ -50,6 +52,9 @@ export default function AdminRequestManagementPage() {
         }
         const data = await res.json();
         setRequest(data.issue);
+        if (data.issue?.department || data.issue?.category) {
+          setSelectedDept(data.issue.department || data.issue.category);
+        }
 
         const staffRes = await fetch('/api/admin/users?role=Staff', { cache: 'no-store' });
         if (staffRes.ok) {
@@ -78,6 +83,9 @@ export default function AdminRequestManagementPage() {
     if (!selectedStaffId) return;
 
     setAssigning(true);
+    setAssignError(null);
+    setAssignSuccessMessage(null);
+
     try {
       const res = await fetch(`/api/issues/${id}/assign`, {
         method: 'PATCH',
@@ -88,16 +96,19 @@ export default function AdminRequestManagementPage() {
         }),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        throw new Error('Failed to assign staff member');
+        throw new Error(data.error || 'Work assignment failed');
       }
 
-      const data = await res.json();
       setRequest(data.issue);
       setAssignModalOpen(false);
       setAssignNote('');
+      setAssignSuccessMessage('Staff assigned successfully');
+      setTimeout(() => setAssignSuccessMessage(null), 5000);
     } catch (err: any) {
-      alert(err.message);
+      setAssignError(err.message || 'Work assignment failed');
     } finally {
       setAssigning(false);
     }
@@ -170,6 +181,12 @@ export default function AdminRequestManagementPage() {
             <PriorityBadge priority={request.priority} />
           </div>
         </div>
+
+        {assignSuccessMessage && (
+          <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold flex items-center justify-between">
+            <span>{assignSuccessMessage}</span>
+          </div>
+        )}
 
         {/* Request Header */}
         <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs space-y-4">
@@ -319,6 +336,12 @@ export default function AdminRequestManagementPage() {
           subtitle={`${ticketCode} - ${request.title}`}
         >
           <form onSubmit={handleAssignStaffSubmit} className="space-y-4">
+            {assignError && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl">
+                {assignError}
+              </div>
+            )}
+
             <Select
               label="Department"
               options={[
@@ -340,34 +363,36 @@ export default function AdminRequestManagementPage() {
                 <p className="text-xs text-slate-400 italic">No staff members registered.</p>
               ) : (
                 <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {staffList.map((s) => (
-                    <label
-                      key={s.id || s._id}
-                      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
-                        selectedStaffId === (s.id || s._id)
-                          ? 'border-[#2563eb] bg-blue-50/50'
-                          : 'border-slate-200 bg-white hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="radio"
-                          name="staff"
-                          value={s.id || s._id}
-                          checked={selectedStaffId === (s.id || s._id)}
-                          onChange={() => setSelectedStaffId(s.id || s._id)}
-                          className="text-[#2563eb]"
-                        />
-                        <div>
-                          <p className="text-xs font-bold text-slate-900">{s.displayName}</p>
-                          <p className="text-[10px] text-slate-500">{s.department || 'Facilities'}</p>
+                  {staffList
+                    .filter((s) => !selectedDept || (s.department || 'Facilities').toLowerCase() === selectedDept.toLowerCase() || staffList.every(x => (x.department || 'Facilities').toLowerCase() !== selectedDept.toLowerCase()))
+                    .map((s) => (
+                      <label
+                        key={s.id || s._id}
+                        className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                          selectedStaffId === (s.id || s._id)
+                            ? 'border-[#2563eb] bg-blue-50/50'
+                            : 'border-slate-200 bg-white hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="radio"
+                            name="staff"
+                            value={s.id || s._id}
+                            checked={selectedStaffId === (s.id || s._id)}
+                            onChange={() => setSelectedStaffId(s.id || s._id)}
+                            className="text-[#2563eb]"
+                          />
+                          <div>
+                            <p className="text-xs font-bold text-slate-900">{s.displayName}</p>
+                            <p className="text-[10px] text-slate-500">{s.department || 'Facilities'}</p>
+                          </div>
                         </div>
-                      </div>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                        {s.activeTasks || 0} active
-                      </span>
-                    </label>
-                  ))}
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                          {s.activeTasks || 0} active
+                        </span>
+                      </label>
+                    ))}
                 </div>
               )}
             </div>

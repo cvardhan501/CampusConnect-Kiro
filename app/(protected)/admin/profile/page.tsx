@@ -4,11 +4,21 @@ import React, { useEffect, useState } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
-import { Shield, Key, Lock, Mail, Phone, Building } from 'lucide-react';
+import { Input } from '@/components/ui/Input';
+import { Shield, Key } from 'lucide-react';
 
 export default function AdminProfilePage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Password update form state
+  const [isPasswordFormOpen, setIsPasswordFormOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -28,6 +38,56 @@ export default function AdminProfilePage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (!currentPassword) {
+      setPasswordError('Current password is required.');
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 10) {
+      setPasswordError('New password must be at least 10 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New password and confirm password do not match.');
+      return;
+    }
+
+    setUpdatingPassword(true);
+
+    try {
+      const res = await fetch('/api/admin/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update password');
+      }
+
+      setPasswordSuccess('Password updated successfully.');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => {
+        setIsPasswordFormOpen(false);
+        setPasswordSuccess(null);
+      }, 2000);
+    } catch (err: any) {
+      setPasswordError(err.message || 'Failed to update password');
+    } finally {
+      setUpdatingPassword(false);
+    }
+  };
 
   return (
     <AppShell initialRole="admin">
@@ -76,17 +136,93 @@ export default function AdminProfilePage() {
             <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs space-y-4">
               <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">Security</h3>
 
-              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200/60">
-                <div className="flex items-center gap-3">
-                  <Key className="w-5 h-5 text-[#2563eb]" />
-                  <div>
-                    <p className="text-xs font-bold text-slate-900">Change Password</p>
-                    <p className="text-[10px] text-slate-500 font-medium">Update your account password</p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200/60">
+                  <div className="flex items-center gap-3">
+                    <Key className="w-5 h-5 text-[#2563eb]" />
+                    <div>
+                      <p className="text-xs font-bold text-slate-900">Change Password</p>
+                      <p className="text-[10px] text-slate-500 font-medium">Update your account password</p>
+                    </div>
                   </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setIsPasswordFormOpen(!isPasswordFormOpen);
+                      setPasswordError(null);
+                      setPasswordSuccess(null);
+                    }}
+                  >
+                    {isPasswordFormOpen ? 'Cancel' : 'Update'}
+                  </Button>
                 </div>
-                <Button size="sm" variant="outline">
-                  Update
-                </Button>
+
+                {isPasswordFormOpen && (
+                  <form onSubmit={handlePasswordUpdate} className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-4">
+                    {passwordError && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs font-semibold text-red-700">
+                        {passwordError}
+                      </div>
+                    )}
+                    {passwordSuccess && (
+                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-semibold text-emerald-700">
+                        {passwordSuccess}
+                      </div>
+                    )}
+
+                    <Input
+                      label="Current Password"
+                      type="password"
+                      placeholder="Enter current password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      required
+                    />
+
+                    <Input
+                      label="New Password"
+                      type="password"
+                      placeholder="Enter new password (min. 10 characters)"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                    />
+
+                    <Input
+                      label="Confirm New Password"
+                      type="password"
+                      placeholder="Confirm new password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                    />
+
+                    <div className="flex justify-end gap-3 pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setIsPasswordFormOpen(false);
+                          setPasswordError(null);
+                          setPasswordSuccess(null);
+                        }}
+                        disabled={updatingPassword}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        size="sm"
+                        loading={updatingPassword}
+                        disabled={updatingPassword}
+                      >
+                        Save Password
+                      </Button>
+                    </div>
+                  </form>
+                )}
               </div>
 
               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200/60">

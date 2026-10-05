@@ -118,7 +118,7 @@ export default function AdminAllRequestsPage() {
       cell: (r) => (
         <Link href={`/admin/issues/${r._id || r.id}`}>
           <Button size="sm" variant="outline">
-            Manage
+            View
           </Button>
         </Link>
       ),
