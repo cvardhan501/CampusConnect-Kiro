@@ -30,8 +30,8 @@ export const StatusTimeline: React.FC<StatusTimelineProps> = ({ currentStatus })
   }
 
   return (
-    <div className="w-full py-4 px-2" role="region" aria-label="Issue Status Progress">
-      <div className="relative flex items-center justify-between">
+    <nav className="w-full py-4 px-2" aria-label="Issue Status Progress">
+      <ol className="relative flex items-center justify-between">
         {/* Progress Line */}
         <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-1 bg-slate-200 z-0" aria-hidden="true" />
         <div
@@ -46,9 +46,9 @@ export const StatusTimeline: React.FC<StatusTimelineProps> = ({ currentStatus })
           const statusText = isCompleted ? 'Completed step' : isCurrent ? 'Current step' : 'Upcoming step';
 
           return (
-            <div
+            <li
               key={step.id}
-              className="relative z-10 flex flex-col items-center group"
+              className="relative z-10 flex flex-col items-center group list-none"
               aria-current={isCurrent ? 'step' : undefined}
               aria-label={`${step.label} (${statusText})`}
               title={`${step.label} (${statusText})`}
@@ -78,11 +78,12 @@ export const StatusTimeline: React.FC<StatusTimelineProps> = ({ currentStatus })
                 }`}
               >
                 {step.label}
+                <span className="sr-only"> ({statusText})</span>
               </span>
-            </div>
+            </li>
           );
         })}
-      </div>
-    </div>
+      </ol>
+    </nav>
   );
 };
