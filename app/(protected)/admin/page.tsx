@@ -153,7 +153,7 @@ export default function AdminOverviewPage() {
                     <div className="flex items-center gap-3 shrink-0">
                       <PriorityBadge priority={req.priority} />
                       <Link href={`/admin/issues/${req._id || req.id}`}>
-                        <Button size="sm" variant="outline">
+                        <Button size="sm" variant="outline" aria-label={`View request ${req.ticketId || req.title}`}>
                           View
                         </Button>
                       </Link>
@@ -184,7 +184,14 @@ export default function AdminOverviewPage() {
                         <span className="font-bold text-slate-900">{s.displayName} ({s.department || 'Facilities'})</span>
                         <span className="font-bold text-slate-500">{s.activeTasks || 0} tasks</span>
                       </div>
-                      <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="w-full bg-slate-100 rounded-full h-2 overflow-hidden"
+                        role="progressbar"
+                        aria-valuenow={s.activeTasks || 0}
+                        aria-valuemin={0}
+                        aria-valuemax={10}
+                        aria-label={`Active workload for ${s.displayName}`}
+                      >
                         <div
                           className="bg-[#2563eb] h-full rounded-full transition-all duration-300"
                           style={{ width: `${Math.min(((s.activeTasks || 0) / 10) * 100, 100)}%` }}
