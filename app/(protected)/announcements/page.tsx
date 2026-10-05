@@ -88,38 +88,49 @@ export default function NotificationsPage() {
             />
           )
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-4" role="feed" aria-label="Campus Notifications">
             {filtered.map((ann) => (
-              <div
+              <article
                 key={ann._id || ann.id}
                 className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs space-y-3"
+                aria-label={`Notification: ${ann.title}`}
               >
-                <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3 flex-wrap">
                   <div className="flex items-center gap-2">
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-[#2563eb] border border-blue-100">
                       {ann.category || 'General'}
                     </span>
                     {ann.priority === 'Urgent' && (
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-50 text-red-600 border border-red-200">
+                      <span
+                        className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-50 text-red-600 border border-red-200"
+                        role="status"
+                        aria-label="Priority: Urgent"
+                      >
                         Urgent
                       </span>
                     )}
                   </div>
                   <div className="flex items-center gap-3 text-xs text-slate-400 font-medium">
                     <span className="flex items-center gap-1">
-                      <User className="w-3.5 h-3.5" />
+                      <User className="w-3.5 h-3.5" aria-hidden="true" />
                       {ann.author?.displayName || 'Administration'}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {ann.createdAt ? new Date(ann.createdAt).toLocaleString() : 'Recently'}
+                      <Calendar className="w-3.5 h-3.5" aria-hidden="true" />
+                      {ann.createdAt ? (
+                        <time dateTime={new Date(ann.createdAt).toISOString()}>
+                          {new Date(ann.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                        </time>
+                      ) : (
+                        'Recently'
+                      )}
                     </span>
                   </div>
                 </div>
 
                 <h3 className="text-base font-extrabold text-slate-900">{ann.title}</h3>
                 <p className="text-xs text-slate-700 leading-relaxed font-medium">{ann.content}</p>
-              </div>
+              </article>
             ))}
           </div>
         )}
