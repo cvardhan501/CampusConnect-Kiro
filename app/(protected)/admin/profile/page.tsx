@@ -5,7 +5,8 @@ import { AppShell } from '@/components/layout/AppShell';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Shield, Key } from 'lucide-react';
+import { Modal } from '@/components/ui/Modal';
+import { Shield, Key, Eye, EyeOff } from 'lucide-react';
 
 export default function AdminProfilePage() {
   const [user, setUser] = useState<any>(null);
@@ -16,6 +17,9 @@ export default function AdminProfilePage() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
@@ -39,6 +43,17 @@ export default function AdminProfilePage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const resetPasswordForm = () => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowCurrentPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
+    setPasswordError(null);
+    setPasswordSuccess(null);
+  };
+
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordError(null);
@@ -51,6 +66,11 @@ export default function AdminProfilePage() {
 
     if (!newPassword || newPassword.length < 10) {
       setPasswordError('New password must be at least 10 characters long.');
+      return;
+    }
+
+    if (newPassword === currentPassword) {
+      setPasswordError('New password must be different from current password.');
       return;
     }
 
@@ -75,13 +95,10 @@ export default function AdminProfilePage() {
       }
 
       setPasswordSuccess('Password updated successfully.');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
       setTimeout(() => {
         setIsPasswordFormOpen(false);
-        setPasswordSuccess(null);
-      }, 2000);
+        resetPasswordForm();
+      }, 1500);
     } catch (err: any) {
       setPasswordError(err.message || 'Failed to update password');
     } finally {
@@ -149,80 +166,13 @@ export default function AdminProfilePage() {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      setIsPasswordFormOpen(!isPasswordFormOpen);
-                      setPasswordError(null);
-                      setPasswordSuccess(null);
+                      resetPasswordForm();
+                      setIsPasswordFormOpen(true);
                     }}
                   >
-                    {isPasswordFormOpen ? 'Cancel' : 'Update'}
+                    Update
                   </Button>
                 </div>
-
-                {isPasswordFormOpen && (
-                  <form onSubmit={handlePasswordUpdate} className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-4">
-                    {passwordError && (
-                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs font-semibold text-red-700">
-                        {passwordError}
-                      </div>
-                    )}
-                    {passwordSuccess && (
-                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-semibold text-emerald-700">
-                        {passwordSuccess}
-                      </div>
-                    )}
-
-                    <Input
-                      label="Current Password"
-                      type="password"
-                      placeholder="Enter current password"
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      required
-                    />
-
-                    <Input
-                      label="New Password"
-                      type="password"
-                      placeholder="Enter new password (min. 10 characters)"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      required
-                    />
-
-                    <Input
-                      label="Confirm New Password"
-                      type="password"
-                      placeholder="Confirm new password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
-                    />
-
-                    <div className="flex justify-end gap-3 pt-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setIsPasswordFormOpen(false);
-                          setPasswordError(null);
-                          setPasswordSuccess(null);
-                        }}
-                        disabled={updatingPassword}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        size="sm"
-                        loading={updatingPassword}
-                        disabled={updatingPassword}
-                      >
-                        Save Password
-                      </Button>
-                    </div>
-                  </form>
-                )}
               </div>
 
               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200/60">
@@ -240,6 +190,108 @@ export default function AdminProfilePage() {
             </div>
           </div>
         )}
+
+        {/* Update Password Modal */}
+        <Modal
+          isOpen={isPasswordFormOpen}
+          onClose={() => {
+            setIsPasswordFormOpen(false);
+            resetPasswordForm();
+          }}
+          title="Update Admin Password"
+          subtitle="Enter your current password and a new secure password."
+        >
+          <form onSubmit={handlePasswordUpdate} className="space-y-4">
+            {passwordError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-700">
+                {passwordError}
+              </div>
+            )}
+            {passwordSuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-semibold text-emerald-700">
+                {passwordSuccess}
+              </div>
+            )}
+
+            <Input
+              label="Current Password"
+              type={showCurrentPassword ? 'text' : 'password'}
+              placeholder="Enter current password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              rightElement={
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors p-1"
+                  aria-label={showCurrentPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              }
+              required
+            />
+
+            <Input
+              label="New Password"
+              type={showNewPassword ? 'text' : 'password'}
+              placeholder="Enter new password (min. 10 characters)"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              rightElement={
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors p-1"
+                  aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              }
+              required
+            />
+
+            <Input
+              label="Confirm New Password"
+              type={showConfirmPassword ? 'text' : 'password'}
+              placeholder="Confirm new password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              rightElement={
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors p-1"
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              }
+              required
+            />
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsPasswordFormOpen(false);
+                  resetPasswordForm();
+                }}
+                disabled={updatingPassword}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                loading={updatingPassword}
+                disabled={updatingPassword}
+              >
+                Save Password
+              </Button>
+            </div>
+          </form>
+        </Modal>
       </div>
     </AppShell>
   );

@@ -45,6 +45,9 @@ export default function AdminRequestManagementPage() {
 
   useEffect(() => {
     async function loadAdminData() {
+      setRequest(null);
+      setLoading(true);
+      setError(null);
       try {
         const res = await fetch(`/api/issues/${id}`, { cache: 'no-store' });
         if (!res.ok) {
@@ -289,10 +292,11 @@ export default function AdminRequestManagementPage() {
 
                 <Button
                   className="w-full justify-center"
-                  icon={<UserPlus className="w-4 h-4" />}
+                  icon={request.assignedTo ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <UserPlus className="w-4 h-4" />}
                   onClick={() => setAssignModalOpen(true)}
+                  disabled={Boolean(request.assignedTo) || assigning}
                 >
-                  Assign Staff
+                  {request.assignedTo ? 'Work Assigned' : 'Assign Work'}
                 </Button>
 
                 <Button

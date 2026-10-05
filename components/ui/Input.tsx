@@ -5,10 +5,11 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
   error?: string;
   helperText?: string;
   icon?: React.ReactNode;
+  rightElement?: React.ReactNode;
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, helperText, icon, className = '', id, ...props }, ref) => {
+  ({ label, error, helperText, icon, rightElement, className = '', id, ...props }, ref) => {
     const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
     const errorId = inputId && error ? `${inputId}-error` : undefined;
     const helperId = inputId && helperText && !error ? `${inputId}-helper` : undefined;
@@ -31,9 +32,10 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             aria-describedby={describedBy}
             className={`w-full rounded-xl border bg-slate-50/70 py-2.5 px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#2563eb] focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 transition-all ${
               icon ? 'pl-10' : ''
-            } ${error ? 'border-red-500 focus:ring-red-100' : 'border-slate-200/90'} ${className}`}
+            } ${rightElement ? 'pr-10' : ''} ${error ? 'border-red-500 focus:ring-red-100' : 'border-slate-200/90'} ${className}`}
             {...props}
           />
+          {rightElement && <div className="absolute right-3.5 flex items-center z-10">{rightElement}</div>}
         </div>
         {error && (
           <p id={errorId} className="text-xs text-red-600 font-medium">

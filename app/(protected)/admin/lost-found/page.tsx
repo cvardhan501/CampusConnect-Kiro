@@ -6,6 +6,7 @@ import { Tabs } from '@/components/ui/Tabs';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Modal } from '@/components/ui/Modal';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
 import { PackageSearch, Plus, MapPin } from 'lucide-react';
 
@@ -15,7 +16,11 @@ export default function AdminLostFoundPage() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Lightbox
+  // Detail Modal State
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+
+  // Lightbox State
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxImages, setLightboxImages] = useState<any[]>([]);
@@ -44,6 +49,14 @@ export default function AdminLostFoundPage() {
     setLightboxIndex(index);
     setLightboxTitle(titleStr);
     setLightboxOpen(true);
+  };
+
+  const openItemDetails = (item: any) => {
+    setSelectedItem(null);
+    setTimeout(() => {
+      setSelectedItem(item);
+      setDetailModalOpen(true);
+    }, 0);
   };
 
   const tabs = [
@@ -121,7 +134,7 @@ export default function AdminLostFoundPage() {
                           {item.type}
                         </span>
                         <span className="text-[10px] text-slate-400 font-medium">
-                          {new Date(item.createdAt || item.date).toLocaleDateString()}
+                          {new Date(item.createdAt || item.date || Date.now()).toLocaleDateString()}
                         </span>
                       </div>
 
@@ -156,9 +169,7 @@ export default function AdminLostFoundPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          if (itemPhotos.length > 0) openLightbox(itemPhotos, 0, item.title);
-                        }}
+                        onClick={() => openItemDetails(item)}
                       >
                         View
                       </Button>
@@ -169,6 +180,97 @@ export default function AdminLostFoundPage() {
             </div>
           )}
         </div>
+
+        {/* Item Detail Modal */}
+        <Modal
+          isOpen={detailModalOpen}
+          onClose={() => setDetailModalOpen(false)}
+          title="Lost & Found Item Details"
+          subtitle={selectedItem ? `${selectedItem.type} Item - ${selectedItem.title}` : ''}
+        >
+          {selectedItem && (
+            <div className="space-y-4 text-xs select-none">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                    selectedItem.type === 'Found'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-amber-50 text-amber-700 border-amber-200'
+                  }`}
+                >
+                  {selectedItem.type} Item
+                </span>
+                <span className="text-slate-400 font-mono text-[11px]">
+                  Reported: {new Date(selectedItem.createdAt || selectedItem.date || Date.now()).toLocaleString()}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="font-extrabold text-sm text-slate-900">{selectedItem.title}</h4>
+                <p className="text-slate-700 font-medium leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200/60">
+                  {selectedItem.description}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 bg-slate-50/70 p-3 rounded-xl border border-slate-200/60">
+                <div>
+                  <span className="text-slate-400 font-medium block">Category:</span>
+                  <span className="font-bold text-slate-900">{selectedItem.category}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Location:</span>
+                  <span className="font-bold text-slate-900">{selectedItem.location}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Contact Info:</span>
+                  <span className="font-bold text-slate-900">{selectedItem.contactInfo}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Reporter:</span>
+                  <span className="font-bold text-slate-900">
+                    {selectedItem.reporter?.displayName || 'Campus User'}
+                  </span>
+                </div>
+              </div>
+
+              {((selectedItem.attachments && selectedItem.attachments.length > 0) || selectedItem.imageUrl) && (
+                <div className="space-y-2 pt-1">
+                  <h4 className="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Attached Images</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(selectedItem.attachments && selectedItem.attachments.length > 0
+                      ? selectedItem.attachments
+                      : [{ url: selectedItem.imageUrl }]
+                    ).map((att: any, idx: number) => (
+                      <div
+                        key={idx}
+                        onClick={() =>
+                          openLightbox(
+                            selectedItem.attachments || [{ url: selectedItem.imageUrl }],
+                            idx,
+                            selectedItem.title
+                          )
+                        }
+                        className="relative h-24 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 cursor-pointer hover:border-[#2563eb] transition-all"
+                      >
+                        <img
+                          src={att.thumbnailUrl || att.url}
+                          alt={selectedItem.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-3 border-t border-slate-100">
+                <Button variant="outline" onClick={() => setDetailModalOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </Modal>
 
         <ImageLightbox
           isOpen={lightboxOpen}

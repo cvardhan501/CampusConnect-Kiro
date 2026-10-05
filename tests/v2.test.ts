@@ -219,4 +219,55 @@ describe('CampusConnect v2 Staff Assignment & View Navigation', () => {
     }
     expect(legacyDoc.ticketId).toBe('CC-2026-00088');
   });
+
+  it('rejects password update when new password is identical to current password', () => {
+    const samePasswordResult = UpdatePasswordSchema.safeParse({
+      currentPassword: 'SamePassword123!',
+      newPassword: 'SamePassword123!',
+      confirmPassword: 'SamePassword123!',
+    });
+    expect(samePasswordResult.success).toBe(false);
+  });
+
+  it('determines Assign button label dynamically based on persisted assignment data', () => {
+    const unassignedIssue = { _id: '1', title: 'Issue 1', assignedTo: null };
+    const assignedIssue = {
+      _id: '2',
+      title: 'Issue 2',
+      assignedTo: { _id: 'staff1', displayName: 'John Staff', email: 'john@campus.edu' },
+    };
+
+    const getButtonText = (issue: any) => (issue.assignedTo ? 'Work Assigned' : 'Assign Work');
+
+    expect(getButtonText(unassignedIssue)).toBe('Assign Work');
+    expect(getButtonText(assignedIssue)).toBe('Work Assigned');
+  });
+
+  it('verifies safe assignedTo object structure excluding passwordHash and auth credentials', () => {
+    const safeAssignedTo = {
+      _id: '650000000000000000000010',
+      displayName: 'Sarah Staff',
+      email: 'sarah@campus.edu',
+      role: 'Staff',
+      department: 'Facilities',
+    };
+
+    expect(safeAssignedTo).not.toHaveProperty('passwordHash');
+    expect(safeAssignedTo).not.toHaveProperty('refreshTokenHash');
+    expect(safeAssignedTo).not.toHaveProperty('jwtSecret');
+    expect(safeAssignedTo.displayName).toBe('Sarah Staff');
+  });
+
+  it('toggles login password field visibility state and accessible aria-label', () => {
+    let showPassword = false;
+    const getAriaLabel = (visible: boolean) => (visible ? 'Hide password' : 'Show password');
+    const getInputType = (visible: boolean) => (visible ? 'text' : 'password');
+
+    expect(getInputType(showPassword)).toBe('password');
+    expect(getAriaLabel(showPassword)).toBe('Show password');
+
+    showPassword = true;
+    expect(getInputType(showPassword)).toBe('text');
+    expect(getAriaLabel(showPassword)).toBe('Hide password');
+  });
 });

@@ -77,6 +77,17 @@ export default function AdminStaffManagementPage() {
     }
   };
 
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [viewUserModalOpen, setViewUserModalOpen] = useState(false);
+
+  const handleViewUser = (u: any) => {
+    setSelectedUser(null);
+    setTimeout(() => {
+      setSelectedUser(u);
+      setViewUserModalOpen(true);
+    }, 0);
+  };
+
   const columns: Column<any>[] = [
     {
       header: 'Staff Member',
@@ -113,8 +124,8 @@ export default function AdminStaffManagementPage() {
     },
     {
       header: 'Actions',
-      cell: () => (
-        <Button size="sm" variant="outline">
+      cell: (u) => (
+        <Button size="sm" variant="outline" onClick={() => handleViewUser(u)}>
           View
         </Button>
       ),
@@ -205,6 +216,59 @@ export default function AdminStaffManagementPage() {
               </Button>
             </div>
           </form>
+        </Modal>
+
+        {/* View Staff User Modal */}
+        <Modal
+          isOpen={viewUserModalOpen}
+          onClose={() => setViewUserModalOpen(false)}
+          title="Staff Member Profile"
+          subtitle={selectedUser ? `${selectedUser.displayName} (${selectedUser.campusId || 'Staff'})` : ''}
+        >
+          {selectedUser && (
+            <div className="space-y-4 text-xs select-none">
+              <div className="flex items-center gap-4 border-b border-slate-100 pb-3">
+                <Avatar name={selectedUser.displayName} size="md" />
+                <div>
+                  <h4 className="font-extrabold text-sm text-slate-900">{selectedUser.displayName}</h4>
+                  <p className="text-slate-500 font-medium">{selectedUser.email}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200/60">
+                <div>
+                  <span className="text-slate-400 font-medium block">Department:</span>
+                  <span className="font-bold text-slate-900">{selectedUser.department || 'Facilities'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Role:</span>
+                  <span className="font-bold text-slate-900">{selectedUser.role}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Campus ID:</span>
+                  <span className="font-bold font-mono text-slate-900">{selectedUser.campusId || 'N/A'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Active Tasks:</span>
+                  <span className="font-bold text-[#2563eb]">{selectedUser.activeTasks || 0} active</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Status:</span>
+                  <span className="font-bold text-emerald-700">{selectedUser.status || 'Active'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block">Contact Phone:</span>
+                  <span className="font-bold text-slate-900">{selectedUser.phoneNumber || selectedUser.contactPhone || 'N/A'}</span>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2 border-t border-slate-100">
+                <Button variant="outline" onClick={() => setViewUserModalOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
         </Modal>
       </div>
     </AppShell>
