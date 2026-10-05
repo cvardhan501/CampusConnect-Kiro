@@ -1,35 +1,52 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Avatar } from '@/components/ui/Avatar';
 import { LoadingState } from '@/components/ui/LoadingState';
-import { Mail, Phone, Building, IdCard, Shield } from 'lucide-react';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Button } from '@/components/ui/Button';
+import { Mail, Phone, Building, IdCard, Shield, AlertTriangle, RefreshCw } from 'lucide-react';
 
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadProfile = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/auth/me');
+      if (!res.ok) {
+        throw new Error('Unable to load profile data. Please verify your login session.');
+      }
+      const data = await res.json();
+      if (data?.user) {
+        setUser({
+          name: data.user.displayName || 'Campus User',
+          email: data.user.email || 'Not provided',
+          role: data.user.role || 'Student',
+          department: data.user.department || 'Not provided',
+          studentId: data.user.campusId || 'Not provided',
+          phone: data.user.contactPhone || data.user.phoneNumber || 'Not provided',
+          status: data.user.status || 'Active',
+          createdAt: data.user.createdAt,
+        });
+      } else {
+        throw new Error('User account profile was not returned.');
+      }
+    } catch (err: any) {
+      console.error('Failed to load profile:', err);
+      setError(err.message || 'Failed to load user profile.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetch('/api/auth/me')
-      .then((res) => (res.ok ? res.json() : { user: null }))
-      .then((data) => {
-        if (data?.user) {
-          setUser({
-            name: data.user.displayName || 'Campus User',
-            email: data.user.email || 'Not provided',
-            role: data.user.role || 'Student',
-            department: data.user.department || 'Not provided',
-            studentId: data.user.campusId || 'Not provided',
-            phone: data.user.contactPhone || data.user.phoneNumber || 'Not provided',
-            status: data.user.status || 'Active',
-            createdAt: data.user.createdAt,
-          });
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    loadProfile();
+  }, [loadProfile]);
 
   return (
     <AppShell initialRole={(user?.role?.toLowerCase() as any) || 'student'}>
@@ -41,8 +58,17 @@ export default function ProfilePage() {
 
         {loading ? (
           <LoadingState message="Loading user profile..." />
-        ) : !user ? (
-          <div className="text-center py-12 text-xs font-semibold text-slate-400">User details unavailable.</div>
+        ) : error || !user ? (
+          <EmptyState
+            title="Unable to load user profile"
+            description={error || 'User account details could not be retrieved at this time.'}
+            icon={<AlertTriangle className="w-8 h-8 text-amber-500" />}
+            action={
+              <Button variant="outline" onClick={loadProfile} icon={<RefreshCw className="w-4 h-4" />}>
+                Retry
+              </Button>
+            }
+          />
         ) : (
           <>
             {/* Header Card */}
