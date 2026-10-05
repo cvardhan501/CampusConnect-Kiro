@@ -159,8 +159,17 @@ export default function RequestDetailsPage() {
                 {request.attachments.map((att: any, idx: number) => (
                   <div
                     key={att.publicId || idx}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`View photo ${idx + 1} of ${request.attachments.length}`}
                     onClick={() => openLightbox(request.attachments, idx, 'Student Reported Photos')}
-                    className="relative group rounded-xl overflow-hidden border border-slate-200 bg-slate-100 aspect-square cursor-pointer hover:border-[#2563eb] transition-all shadow-2xs"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        openLightbox(request.attachments, idx, 'Student Reported Photos');
+                      }
+                    }}
+                    className="relative group rounded-xl overflow-hidden border border-slate-200 bg-slate-100 aspect-square cursor-pointer hover:border-[#2563eb] focus:outline-none focus:ring-2 focus:ring-[#2563eb] transition-all shadow-2xs"
                   >
                     <img
                       src={att.thumbnailUrl || att.url}
@@ -185,8 +194,17 @@ export default function RequestDetailsPage() {
                 {request.resolutionPhotos.map((att: any, idx: number) => (
                   <div
                     key={att.publicId || idx}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`View resolution photo ${idx + 1} of ${request.resolutionPhotos.length}`}
                     onClick={() => openLightbox(request.resolutionPhotos, idx, 'Staff Completion Evidence')}
-                    className="relative group rounded-xl overflow-hidden border border-emerald-200 bg-emerald-50 aspect-square cursor-pointer hover:border-emerald-500 transition-all shadow-2xs"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        openLightbox(request.resolutionPhotos, idx, 'Staff Completion Evidence');
+                      }
+                    }}
+                    className="relative group rounded-xl overflow-hidden border border-emerald-200 bg-emerald-50 aspect-square cursor-pointer hover:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-2xs"
                   >
                     <img
                       src={att.thumbnailUrl || att.url}
